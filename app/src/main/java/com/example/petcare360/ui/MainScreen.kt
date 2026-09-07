@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -50,7 +51,8 @@ enum class NavTab(
 
 @Composable
 fun MainScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogout: () -> Unit = {}
 ) {
     var currentTab by remember { mutableStateOf(NavTab.INICIO) }
 
@@ -69,7 +71,7 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             when (currentTab) {
-                NavTab.INICIO -> HomeScreen()
+                NavTab.INICIO -> HomeScreen(onLogoutClick = onLogout)
                 NavTab.SALUD -> SaludScreen()
                 NavTab.PERDIDOS -> PerdidosScreen()
                 NavTab.COMUNIDAD -> ComunidadScreen()
@@ -93,6 +95,7 @@ fun PetCareBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically

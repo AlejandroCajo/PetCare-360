@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -111,13 +112,15 @@ private data class QuickActionItem(
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogoutClick: () -> Unit = {}
 ) {
     var activePet by remember { mutableIntStateOf(0) }
     HomeScreen(
         activePet = activePet,
         setActivePet = { activePet = it },
-        modifier = modifier
+        modifier = modifier,
+        onLogoutClick = onLogoutClick
     )
 }
 
@@ -128,6 +131,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     pets: List<Pet> = SAMPLE_PETS,
     onNotificationClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {},
     onAddPetClick: () -> Unit = {},
     onSeeAllAppointmentsClick: () -> Unit = {},
     onAppointmentClick: () -> Unit = {},
@@ -140,10 +144,11 @@ fun HomeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // 1. Header (Greeting + Notification)
+        // 1. Header (Greeting + Actions)
         GreetingHeader(
             userName = "María García",
-            onNotificationClick = onNotificationClick
+            onNotificationClick = onNotificationClick,
+            onLogoutClick = onLogoutClick
         )
 
         // 2. Pet Cards Carousel
@@ -176,7 +181,8 @@ fun HomeScreen(
 @Composable
 private fun GreetingHeader(
     userName: String,
-    onNotificationClick: () -> Unit
+    onNotificationClick: () -> Unit,
+    onLogoutClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -204,28 +210,50 @@ private fun GreetingHeader(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(16.dp))
-                .clickable { onNotificationClick() },
-            contentAlignment = Alignment.Center
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Notificaciones",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 6.dp, end = 6.dp)
-                    .size(8.dp)
-                    .background(Color(0xFFE8703A), CircleShape)
-            )
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(16.dp))
+                    .clickable { onNotificationClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Notificaciones",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 6.dp, end = 6.dp)
+                        .size(8.dp)
+                        .background(Color(0xFFE8703A), CircleShape)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(16.dp))
+                    .clickable { onLogoutClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.Logout,
+                    contentDescription = "Cerrar sesión",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFF6B7280)
+                )
+            }
         }
     }
 }
