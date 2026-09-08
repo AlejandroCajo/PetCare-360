@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -113,13 +114,31 @@ private data class QuickActionItem(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    userName: String = "Alejandro",
+    cloudinaryManager: com.example.petcare360.data.remote.CloudinaryManager? = null,
+    onAddPet: (com.example.petcare360.data.model.PetEntity) -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     var activePet by remember { mutableIntStateOf(0) }
+    var showAddPetDialog by remember { mutableStateOf(false) }
+
+    if (showAddPetDialog && cloudinaryManager != null) {
+        com.example.petcare360.ui.components.AddPetDialog(
+            cloudinaryManager = cloudinaryManager,
+            onDismiss = { showAddPetDialog = false },
+            onPetCreated = { newPet ->
+                showAddPetDialog = false
+                onAddPet(newPet)
+            }
+        )
+    }
+
     HomeScreen(
         activePet = activePet,
         setActivePet = { activePet = it },
+        userName = userName,
         modifier = modifier,
+        onAddPetClick = { showAddPetDialog = true },
         onLogoutClick = onLogoutClick
     )
 }
@@ -129,6 +148,7 @@ fun HomeScreen(
     activePet: Int,
     setActivePet: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    userName: String = "María García",
     pets: List<Pet> = SAMPLE_PETS,
     onNotificationClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
@@ -146,7 +166,7 @@ fun HomeScreen(
     ) {
         // 1. Header (Greeting + Actions)
         GreetingHeader(
-            userName = "María García",
+            userName = userName,
             onNotificationClick = onNotificationClick,
             onLogoutClick = onLogoutClick
         )

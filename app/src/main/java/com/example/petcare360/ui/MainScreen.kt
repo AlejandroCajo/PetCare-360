@@ -18,7 +18,9 @@ import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
+import kotlinx.coroutines.launch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -46,15 +48,35 @@ enum class NavTab(
     SALUD("Salud", Icons.AutoMirrored.Outlined.ShowChart),
     PERDIDOS("Perdidos", Icons.Outlined.LocationOn),
     COMUNIDAD("Comunidad", Icons.Outlined.Groups),
-    SERVICIOS("Servicios", Icons.Outlined.ContentCut)
+    SERVICIOS("Servicios", Icons.Outlined.ContentCut),
+    PERFIL("Perfil", Icons.Outlined.Person)
 }
 
 @Composable
 fun MainScreen(
     modifier: Modifier = Modifier,
+    userName: String = "Alejandro",
+    userEmail: String = "usuario@correo.com",
+    userPhone: String? = null,
+    userAvatar: String? = null,
+    cloudinaryManager: com.example.petcare360.data.remote.CloudinaryManager? = null,
+    supabaseClient: com.example.petcare360.data.remote.SupabaseClient? = null,
     onLogout: () -> Unit = {}
 ) {
     var currentTab by remember { mutableStateOf(NavTab.INICIO) }
+    var petsList by remember { mutableStateOf<List<com.example.petcare360.data.model.PetEntity>>(emptyList()) }
+    var currentUserAvatar by remember { mutableStateOf(userAvatar) }
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    // Cargar mascotas del usuario desde Supabase al iniciar
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (supabaseClient != null) {
+            val result = supabaseClient.getPets()
+            result.onSuccess { pets ->
+                petsList = pets
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -71,11 +93,62 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             when (currentTab) {
-                NavTab.INICIO -> HomeScreen(onLogoutClick = onLogout)
+                NavTab.INICIO -> HomeScreen(
+                    userName = userName,
+                    cloudinaryManager = cloudinaryManager,
+                    onAddPet = { newPet ->
+                        coroutineScope.launch {
+                            if (supabaseClient != null) {
+                                val res = supabaseClient.createPet(newPet)
+                                res.onSuccess { created ->
+                                    petsList = listOf(created) + petsList
+                                }.onFailure {
+                                    petsList = listOf(newPet) + petsList
+                                }
+                            } else {
+                                petsList = listOf(newPet) + petsList
+                            }
+                        }
+                    },
+                    onLogoutClick = onLogout
+                )
                 NavTab.SALUD -> SaludScreen()
                 NavTab.PERDIDOS -> PerdidosScreen()
-                NavTab.COMUNIDAD -> ComunidadScreen()
+                NavTab.COMUNIDAD -> ComunidadScreen(
+                    cloudinaryManager = cloudinaryManager,
+                    userName = userName
+                )
                 NavTab.SERVICIOS -> ServiciosScreen()
+                NavTab.PERFIL -> {
+                    if (cloudinaryManager != null) {
+                        ProfileScreen(
+                            userName = userName,
+                            userEmail = userEmail,
+                            userPhone = userPhone,
+                            userAvatar = currentUserAvatar,
+                            pets = petsList,
+                            cloudinaryManager = cloudinaryManager,
+                            onAddPet = { newPet ->
+                                coroutineScope.launch {
+                                    if (supabaseClient != null) {
+                                        val res = supabaseClient.createPet(newPet)
+                                        res.onSuccess { created ->
+                                            petsList = listOf(created) + petsList
+                                        }.onFailure {
+                                            petsList = listOf(newPet) + petsList
+                                        }
+                                    } else {
+                                        petsList = listOf(newPet) + petsList
+                                    }
+                                }
+                            },
+                            onAvatarUpdated = { newUrl ->
+                                currentUserAvatar = newUrl
+                            },
+                            onLogout = onLogout
+                        )
+                    }
+                }
             }
         }
     }

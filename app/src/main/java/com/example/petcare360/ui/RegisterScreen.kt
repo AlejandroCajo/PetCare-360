@@ -36,6 +36,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -67,6 +68,8 @@ import com.example.petcare360.ui.theme.PetCare360Theme
 
 @Composable
 fun RegisterScreen(
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
     onRegisterClick: (name: String, email: String, phone: String, pass: String) -> Unit = { _, _, _, _ -> },
     onNavigateToLogin: () -> Unit = {},
     onGoogleRegisterClick: () -> Unit = {},
@@ -421,11 +424,28 @@ fun RegisterScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    if (!errorMessage.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Register Button
+                    val isFormValid = fullName.isNotBlank() &&
+                            email.isNotBlank() &&
+                            password.isNotBlank() &&
+                            password == confirmPassword &&
+                            acceptedTerms
+
                     Button(
                         onClick = { onRegisterClick(fullName, email, phone, password) },
+                        enabled = !isLoading && isFormValid,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
@@ -434,12 +454,20 @@ fun RegisterScreen(
                             containerColor = primaryColor
                         )
                     ) {
-                        Text(
-                            text = "Registrarme",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Registrarme",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

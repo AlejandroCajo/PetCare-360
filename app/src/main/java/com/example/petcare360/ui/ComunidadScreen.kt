@@ -130,14 +130,41 @@ val SAMPLE_POSTS = listOf(
 )
 
 /**
- * Sobrecarga Stateful de ComunidadScreen.
+ * Sobrecarga Stateful de ComunidadScreen con soporte Cloudinary.
  */
 @Composable
 fun ComunidadScreen(
+    cloudinaryManager: com.example.petcare360.data.remote.CloudinaryManager? = null,
+    userName: String = "Alejandro",
     modifier: Modifier = Modifier
 ) {
     var likedPostIds by remember { mutableStateOf(setOf<Int>()) }
     var bookmarkedPostIds by remember { mutableStateOf(setOf<Int>()) }
+    var postsList by remember { mutableStateOf(SAMPLE_POSTS) }
+    var showCreatePostDialog by remember { mutableStateOf(false) }
+
+    if (showCreatePostDialog && cloudinaryManager != null) {
+        com.example.petcare360.ui.components.CreatePostDialog(
+            cloudinaryManager = cloudinaryManager,
+            userName = userName,
+            onDismiss = { showCreatePostDialog = false },
+            onPostCreated = { text, photoUrl ->
+                showCreatePostDialog = false
+                val newPost = Post(
+                    id = (postsList.maxOfOrNull { it.id } ?: 0) + 1,
+                    user = userName,
+                    pet = "Mascota",
+                    time = "Hace un momento",
+                    avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+                    text = text,
+                    img = photoUrl,
+                    likes = 0,
+                    comments = 0
+                )
+                postsList = listOf(newPost) + postsList
+            }
+        )
+    }
 
     ComunidadScreen(
         likedPostIds = likedPostIds,
@@ -156,6 +183,9 @@ fun ComunidadScreen(
                 bookmarkedPostIds + postId
             }
         },
+        posts = postsList,
+        onCameraClick = { showCreatePostDialog = true },
+        onAddStoryClick = { showCreatePostDialog = true },
         modifier = modifier
     )
 }
