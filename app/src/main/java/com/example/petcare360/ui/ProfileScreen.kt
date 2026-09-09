@@ -72,6 +72,7 @@ import coil.compose.AsyncImage
 import com.example.petcare360.data.model.PetEntity
 import com.example.petcare360.data.remote.CloudinaryManager
 import com.example.petcare360.ui.components.AddPetDialog
+import com.example.petcare360.data.remote.SupabaseClient
 import kotlinx.coroutines.launch
 
 @Composable
@@ -82,6 +83,7 @@ fun ProfileScreen(
     userAvatar: String?,
     pets: List<PetEntity>,
     cloudinaryManager: CloudinaryManager,
+    supabaseClient: SupabaseClient? = null,
     onAddPet: (PetEntity) -> Unit = {},
     onAvatarUpdated: (String) -> Unit = {},
     onLogout: () -> Unit = {},
@@ -115,6 +117,7 @@ fun ProfileScreen(
     if (showAddPetDialog) {
         AddPetDialog(
             cloudinaryManager = cloudinaryManager,
+            supabaseClient = supabaseClient,
             onDismiss = { showAddPetDialog = false },
             onPetCreated = { newPet ->
                 showAddPetDialog = false
@@ -427,6 +430,19 @@ fun ProfileScreen(
 
                 1 -> {
                     // Pestaña Consultas y Citas Médicas
+                    var medicalRecords by remember { mutableStateOf<List<com.example.petcare360.data.model.MedicalRecordEntity>>(emptyList()) }
+                    var isLoadingRecords by remember { mutableStateOf(true) }
+
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        if (supabaseClient != null) {
+                            val res = supabaseClient.getMedicalRecords()
+                            res.onSuccess { list ->
+                                medicalRecords = list
+                            }
+                        }
+                        isLoadingRecords = false
+                    }
+
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
                             text = "Historial de Consultas Veterinarias",
@@ -436,23 +452,55 @@ fun ProfileScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        ConsultationCard(
-                            vetName = "Clínica Veterinaria San José",
-                            doctor = "Dra. Carmen Soto",
-                            date = "15 Octubre, 2026 - 10:30 AM",
-                            reason = "Vacunación Sextuple & Chequeo general",
-                            status = "Confirmada"
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        ConsultationCard(
-                            vetName = "Hospital Veterinario 24 Horas",
-                            doctor = "Dr. Roberto Peña",
-                            date = "28 Septiembre, 2026 - 04:00 PM",
-                            reason = "Limpieza dental y desparasitación",
-                            status = "Completada"
-                        )
+                        if (isLoadingRecords) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = primaryColor, modifier = Modifier.size(28.dp))
+                            }
+                        } else if (medicalRecords.isEmpty()) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.MedicalServices,
+                                        contentDescription = null,
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Sin consultas ni vacunas registradas",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF4B5563),
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = "Las consultas, vacunas y recetas que registres para tus mascotas aparecerán aquí.",
+                                        color = Color(0xFF9CA3AF),
+                                        fontSize = 12.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            medicalRecords.forEach { record ->
+                                val associatedPet = pets.find { it.id == record.petId }
+                                ConsultationCard(
+                                    title = record.title,
+                                    petName = associatedPet?.name ?: "Mascota",
+                                    date = record.date,
+                                    type = record.recordType
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                        }
                     }
                 }
 
@@ -467,23 +515,38 @@ fun ProfileScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        ServiceOrderCard(
-                            serviceName = "Baño y Corte Spa Canino",
-                            provider = "Happy Paws Grooming",
-                            price = "S/ 65.00",
-                            date = "Mañana a las 11:00 AM",
-                            status = "En Proceso"
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        ServiceOrderCard(
-                            serviceName = "Paseo de 1 Hora (Parque Olivar)",
-                            provider = "Paseadores Pro Lima",
-                            price = "S/ 25.00",
-                            date = "05 Octubre, 2026",
-                            status = "Entregado"
-                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ShoppingBag,
+                                    contentDescription = null,
+                                    tint = Color(0xFF9CA3AF),
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No tienes pedidos ni reservas activas",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF4B5563),
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "Cuando reserves citas en veterinarias, paseos o servicios de estética, podrás gestionarlos desde aquí.",
+                                    color = Color(0xFF9CA3AF),
+                                    fontSize = 12.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -575,11 +638,10 @@ private fun PetProfileCard(pet: PetEntity) {
 
 @Composable
 private fun ConsultationCard(
-    vetName: String,
-    doctor: String,
+    title: String,
+    petName: String,
     date: String,
-    reason: String,
-    status: String
+    type: String
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -601,65 +663,25 @@ private fun ConsultationCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = vetName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                 }
 
                 Surface(
-                    color = if (status == "Confirmada") Color(0xFFE0F2FE) else Color(0xFFDCFCE7),
+                    color = Color(0xFFE0F2FE),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text(
-                        text = status,
+                        text = type.replaceFirstChar { it.uppercase() },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (status == "Confirmada") Color(0xFF0284C7) else Color(0xFF16A34A),
+                        color = Color(0xFF0284C7),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
             }
 
-            Text(text = "$doctor • $reason", fontSize = 12.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(top = 6.dp))
+            Text(text = "Mascota: $petName", fontSize = 12.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(top = 6.dp))
             Text(text = "📅 $date", fontSize = 11.sp, color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 4.dp))
-        }
-    }
-}
-
-@Composable
-private fun ServiceOrderCard(
-    serviceName: String,
-    provider: String,
-    price: String,
-    date: String,
-    status: String
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.ShoppingBag,
-                        contentDescription = null,
-                        tint = Color(0xFFE8703A),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = serviceName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                }
-
-                Text(text = price, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE8703A))
-            }
-
-            Text(text = "Proveedor: $provider", fontSize = 12.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(top = 4.dp))
-            Text(text = "🕒 $date • Estado: $status", fontSize = 11.sp, color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 2.dp))
         }
     }
 }

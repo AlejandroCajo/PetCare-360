@@ -26,17 +26,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.MedicalServices
-import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -62,47 +58,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.petcare360.data.model.PetEntity
 import com.example.petcare360.ui.theme.PetCare360Theme
-
-data class Pet(
-    val id: String,
-    val name: String,
-    val breed: String,
-    val img: String,
-    val color: Color,
-    val colorBg: Color,
-    val statusOk: Boolean
-)
-
-val SAMPLE_PETS = listOf(
-    Pet(
-        id = "1",
-        name = "Luna",
-        breed = "Golden Retriever",
-        img = "https://images.unsplash.com/photo-1552053831-71594a27632d?w=300&h=200&fit=crop",
-        color = Color(0xFFE8703A),
-        colorBg = Color(0xFFFFF3ED),
-        statusOk = true
-    ),
-    Pet(
-        id = "2",
-        name = "Milo",
-        breed = "Gato Siamés",
-        img = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300&h=200&fit=crop",
-        color = Color(0xFF7C3AED),
-        colorBg = Color(0xFFF5F3FF),
-        statusOk = false
-    ),
-    Pet(
-        id = "3",
-        name = "Rocky",
-        breed = "Bulldog Francés",
-        img = "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=300&h=200&fit=crop",
-        color = Color(0xFF3D9E6B),
-        colorBg = Color(0xFFEDFBF3),
-        statusOk = true
-    )
-)
 
 private data class QuickActionItem(
     val label: String,
@@ -115,8 +72,10 @@ private data class QuickActionItem(
 fun HomeScreen(
     modifier: Modifier = Modifier,
     userName: String = "Alejandro",
+    pets: List<PetEntity> = emptyList(),
     cloudinaryManager: com.example.petcare360.data.remote.CloudinaryManager? = null,
-    onAddPet: (com.example.petcare360.data.model.PetEntity) -> Unit = {},
+    supabaseClient: com.example.petcare360.data.remote.SupabaseClient? = null,
+    onAddPet: (PetEntity) -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     var activePet by remember { mutableIntStateOf(0) }
@@ -125,6 +84,7 @@ fun HomeScreen(
     if (showAddPetDialog && cloudinaryManager != null) {
         com.example.petcare360.ui.components.AddPetDialog(
             cloudinaryManager = cloudinaryManager,
+            supabaseClient = supabaseClient,
             onDismiss = { showAddPetDialog = false },
             onPetCreated = { newPet ->
                 showAddPetDialog = false
@@ -137,6 +97,7 @@ fun HomeScreen(
         activePet = activePet,
         setActivePet = { activePet = it },
         userName = userName,
+        pets = pets,
         modifier = modifier,
         onAddPetClick = { showAddPetDialog = true },
         onLogoutClick = onLogoutClick
@@ -149,13 +110,12 @@ fun HomeScreen(
     setActivePet: (Int) -> Unit,
     modifier: Modifier = Modifier,
     userName: String = "María García",
-    pets: List<Pet> = SAMPLE_PETS,
+    pets: List<PetEntity> = emptyList(),
     onNotificationClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onAddPetClick: () -> Unit = {},
     onSeeAllAppointmentsClick: () -> Unit = {},
     onAppointmentClick: () -> Unit = {},
-    onMarkMedicationDone: () -> Unit = {},
     onQuickActionClick: (String) -> Unit = {},
     onReadArticleClick: () -> Unit = {}
 ) {
@@ -181,9 +141,10 @@ fun HomeScreen(
 
         // 3. Upcoming Appointments & Medication Alert
         UpcomingSection(
+            pets = pets,
+            onAddPetClick = onAddPetClick,
             onSeeAllClick = onSeeAllAppointmentsClick,
-            onAppointmentClick = onAppointmentClick,
-            onMarkMedicationDone = onMarkMedicationDone
+            onAppointmentClick = onAppointmentClick
         )
 
         // 4. Quick Actions
@@ -280,11 +241,18 @@ private fun GreetingHeader(
 
 @Composable
 private fun PetsSection(
-    pets: List<Pet>,
+    pets: List<PetEntity>,
     activePet: Int,
     onActivePetChange: (Int) -> Unit,
     onAddPetClick: () -> Unit
 ) {
+    val petColors = listOf(
+        Pair(Color(0xFFE8703A), Color(0xFFFFF3ED)),
+        Pair(Color(0xFF7C3AED), Color(0xFFF5F3FF)),
+        Pair(Color(0xFF3D9E6B), Color(0xFFEDFBF3)),
+        Pair(Color(0xFF2563EB), Color(0xFFEFF6FF))
+    )
+
     Column(modifier = Modifier.padding(bottom = 20.dp)) {
         Row(
             modifier = Modifier
@@ -295,7 +263,7 @@ private fun PetsSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Mis Mascotas",
+                text = "Mis Mascotas (${pets.size})",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -308,7 +276,7 @@ private fun PetsSection(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
-                    modifier = Modifier.size(12.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = Color(0xFFE8703A)
                 )
                 Text(
@@ -320,75 +288,138 @@ private fun PetsSection(
             }
         }
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            itemsIndexed(pets) { i, pet ->
-                val isActive = activePet == i
-                val shape = RoundedCornerShape(16.dp)
-
-                Box(
-                    modifier = Modifier
-                        .width(155.dp)
-                        .then(
-                            if (isActive) {
-                                Modifier.border(2.dp, pet.color, shape)
-                            } else Modifier
+        if (pets.isEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .clickable { onAddPetClick() },
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFFFF7ED),
+                border = BorderStroke(1.dp, Color(0xFFFFEDD5))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0xFFFFE4D6), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Pets,
+                            contentDescription = null,
+                            tint = Color(0xFFE8703A),
+                            modifier = Modifier.size(24.dp)
                         )
-                        .clip(shape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    pet.colorBg,
-                                    pet.color.copy(alpha = 0.13f)
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "¡Registra a tu primera mascota!",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF9A3412)
+                        )
+                        Text(
+                            text = "Toca aquí para agregar foto, especie y placa QR.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFC2410C)
+                        )
+                    }
+                }
+            }
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                itemsIndexed(pets) { i, pet ->
+                    val isActive = activePet == i
+                    val shape = RoundedCornerShape(16.dp)
+                    val colorPair = petColors[i % petColors.size]
+                    val themeColor = colorPair.first
+                    val themeBg = colorPair.second
+
+                    Box(
+                        modifier = Modifier
+                            .width(155.dp)
+                            .then(
+                                if (isActive) {
+                                    Modifier.border(2.dp, themeColor, shape)
+                                } else Modifier
+                            )
+                            .clip(shape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        themeBg,
+                                        themeColor.copy(alpha = 0.13f)
+                                    )
                                 )
                             )
-                        )
-                        .clickable { onActivePetChange(i) }
-                        .padding(14.dp)
-                ) {
-                    Column {
-                        AsyncImage(
-                            model = pet.img,
-                            contentDescription = pet.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(88.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = pet.name,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = pet.breed,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(
-                                        if (pet.statusOk) Color(0xFF3D9E6B) else Color(0xFFF59E0B),
-                                        CircleShape
+                            .clickable { onActivePetChange(i) }
+                            .padding(14.dp)
+                    ) {
+                        Column {
+                            if (!pet.photoUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = pet.photoUrl,
+                                    contentDescription = pet.name,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(88.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(88.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(themeColor.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Pets,
+                                        contentDescription = null,
+                                        tint = themeColor,
+                                        modifier = Modifier.size(36.dp)
                                     )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = pet.name,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (pet.statusOk) "Al día" else "Pendiente",
+                                text = "${pet.species} • ${pet.breed ?: "Mestizo"}",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(Color(0xFF3D9E6B), CircleShape)
+                                )
+                                Text(
+                                    text = "Registrado",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -399,9 +430,10 @@ private fun PetsSection(
 
 @Composable
 private fun UpcomingSection(
+    pets: List<PetEntity>,
+    onAddPetClick: () -> Unit = {},
     onSeeAllClick: () -> Unit,
-    onAppointmentClick: () -> Unit,
-    onMarkMedicationDone: () -> Unit
+    onAppointmentClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -430,153 +462,86 @@ private fun UpcomingSection(
             )
         }
 
-        // Appointment Card
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
-                .clickable { onAppointmentClick() }
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        if (pets.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFE8703A).copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MedicalServices,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = Color(0xFFE8703A)
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Vacuna Antirrábica — Luna",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "Dr. Mendoza · Clínica VetCare",
-                        fontSize = 12.sp,
+                        text = "Sin citas ni recordatorios activos",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarMonth,
-                                contentDescription = null,
-                                modifier = Modifier.size(11.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "15 mar 2026",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Schedule,
-                                contentDescription = null,
-                                modifier = Modifier.size(11.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "10:30 am",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Registra a tu mascota para programar vacunas y citas médicas.",
+                        fontSize = 11.sp,
+                        color = Color(0xFF9CA3AF),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
-
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .padding(top = 4.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-        }
-
-        // Medication Alert Card
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFF59E0B).copy(alpha = 0.08f),
-            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.25f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        } else {
+            val firstPet = pets.first()
+            // Appointment Card
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAppointmentClick() }
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF59E0B).copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE8703A).copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.MedicalServices,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color(0xFFE8703A)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Control Preventivo — ${firstPet.name}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Historial médico al día",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     Icon(
-                        imageVector = Icons.Outlined.Medication,
+                        imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = Color(0xFFD97706)
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Medicamento hoy",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF92400E)
-                    )
-                    Text(
-                        text = "Bravecto para Luna",
-                        fontSize = 12.sp,
-                        color = Color(0xFFB45309)
-                    )
-                }
-
-                Button(
-                    onClick = onMarkMedicationDone,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF59E0B),
-                        contentColor = Color.White
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text(
-                        text = "Marcar",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(top = 4.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

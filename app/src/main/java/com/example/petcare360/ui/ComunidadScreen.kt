@@ -1,5 +1,6 @@
 package com.example.petcare360.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,526 +16,549 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.petcare360.ui.theme.PetCare360Theme
+import com.example.petcare360.data.model.PetEntity
+import com.example.petcare360.data.model.PostEntity
+import com.example.petcare360.data.remote.CloudinaryManager
+import com.example.petcare360.data.remote.SupabaseClient
+import com.example.petcare360.ui.components.CreatePostDialog
+import kotlinx.coroutines.launch
 
-data class Story(
-    val id: String,
-    val name: String,
-    val img: String
-)
+private const val PAGE_SIZE = 10 // Paginación de 10 en 10 posts
 
-data class Post(
-    val id: Int,
-    val user: String,
-    val pet: String,
-    val time: String,
-    val avatar: String,
-    val text: String,
-    val img: String? = null,
-    val likes: Int,
-    val comments: Int
-)
-
-val SAMPLE_STORIES = listOf(
-    Story(
-        id = "1",
-        name = "Luna",
-        img = "https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=100&h=100&fit=crop&auto=format"
-    ),
-    Story(
-        id = "2",
-        name = "Thor",
-        img = "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=100&h=100&fit=crop&auto=format"
-    ),
-    Story(
-        id = "3",
-        name = "Mochi",
-        img = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=100&h=100&fit=crop&auto=format"
-    ),
-    Story(
-        id = "4",
-        name = "Rocky",
-        img = "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=100&h=100&fit=crop&auto=format"
-    )
-)
-
-val SAMPLE_POSTS = listOf(
-    Post(
-        id = 1,
-        user = "Ana Rodríguez",
-        pet = "Luna",
-        time = "Hace 2h",
-        avatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&auto=format",
-        text = "¡Día de parque increíble! Luna hizo un nuevo amigo y no quería volver a casa. 🐕✨",
-        img = "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&h=350&fit=crop&auto=format",
-        likes = 24,
-        comments = 5
-    ),
-    Post(
-        id = 2,
-        user = "Carlos Mendoza",
-        pet = "Thor",
-        time = "Hace 5h",
-        avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&auto=format",
-        text = "Recordatorio: La hidratación en los paseos de tarde es fundamental, especialmente con este clima. Traigan siempre su botella plegable. 💧🐶",
-        likes = 42,
-        comments = 12
-    ),
-    Post(
-        id = 3,
-        user = "Elena Gómez",
-        pet = "Mochi",
-        time = "Hace 8h",
-        avatar = "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&auto=format",
-        text = "Mochi estrenando su nueva plaquita de identificación. Quedó preciosa. 💕🐱",
-        img = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=350&fit=crop&auto=format",
-        likes = 18,
-        comments = 3
-    )
-)
-
-/**
- * Sobrecarga Stateful de ComunidadScreen con soporte Cloudinary.
- */
 @Composable
 fun ComunidadScreen(
-    cloudinaryManager: com.example.petcare360.data.remote.CloudinaryManager? = null,
+    cloudinaryManager: CloudinaryManager? = null,
+    supabaseClient: SupabaseClient? = null,
     userName: String = "Alejandro",
+    userPets: List<PetEntity> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    var likedPostIds by remember { mutableStateOf(setOf<Int>()) }
-    var bookmarkedPostIds by remember { mutableStateOf(setOf<Int>()) }
-    var postsList by remember { mutableStateOf(SAMPLE_POSTS) }
+    var postsList by remember { mutableStateOf<List<PostEntity>>(emptyList()) }
+    var likedPostIds by remember { mutableStateOf(setOf<String>()) }
+    var isLoadingInitial by remember { mutableStateOf(true) }
+    var isLoadingMore by remember { mutableStateOf(false) }
+    var hasMorePosts by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var currentOffset by remember { mutableIntStateOf(0) }
     var showCreatePostDialog by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+    val primaryColor = Color(0xFFE8703A)
+
+    // Función para cargar publicaciones desde Supabase con paginación
+    fun loadPosts(reset: Boolean = false) {
+        if (supabaseClient == null) {
+            isLoadingInitial = false
+            return
+        }
+
+        coroutineScope.launch {
+            val offset = if (reset) 0 else currentOffset
+            if (reset) {
+                isLoadingInitial = true
+                errorMessage = null
+            } else {
+                isLoadingMore = true
+            }
+
+            val result = supabaseClient.getPosts(limit = PAGE_SIZE, offset = offset)
+            isLoadingInitial = false
+            isLoadingMore = false
+
+            result.onSuccess { newPosts ->
+                if (reset) {
+                    postsList = newPosts
+                    currentOffset = newPosts.size
+                } else {
+                    postsList = postsList + newPosts
+                    currentOffset += newPosts.size
+                }
+                hasMorePosts = newPosts.size == PAGE_SIZE
+            }.onFailure { error ->
+                if (reset) {
+                    errorMessage = error.localizedMessage ?: "Error al cargar la comunidad"
+                }
+            }
+        }
+    }
+
+    // Carga inicial al entrar en la pantalla
+    LaunchedEffect(Unit) {
+        loadPosts(reset = true)
+    }
+
+    // Modal para crear post y subir a Cloudinary + Supabase
     if (showCreatePostDialog && cloudinaryManager != null) {
-        com.example.petcare360.ui.components.CreatePostDialog(
+        CreatePostDialog(
             cloudinaryManager = cloudinaryManager,
+            supabaseClient = supabaseClient,
             userName = userName,
+            userPets = userPets,
             onDismiss = { showCreatePostDialog = false },
-            onPostCreated = { text, photoUrl ->
+            onPostCreated = { createdPost ->
                 showCreatePostDialog = false
-                val newPost = Post(
-                    id = (postsList.maxOfOrNull { it.id } ?: 0) + 1,
-                    user = userName,
-                    pet = "Mascota",
-                    time = "Hace un momento",
-                    avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-                    text = text,
-                    img = photoUrl,
-                    likes = 0,
-                    comments = 0
-                )
-                postsList = listOf(newPost) + postsList
+                postsList = listOf(createdPost) + postsList
             }
         )
     }
 
-    ComunidadScreen(
-        likedPostIds = likedPostIds,
-        onToggleLike = { postId ->
-            likedPostIds = if (likedPostIds.contains(postId)) {
-                likedPostIds - postId
-            } else {
-                likedPostIds + postId
-            }
-        },
-        bookmarkedPostIds = bookmarkedPostIds,
-        onToggleBookmark = { postId ->
-            bookmarkedPostIds = if (bookmarkedPostIds.contains(postId)) {
-                bookmarkedPostIds - postId
-            } else {
-                bookmarkedPostIds + postId
-            }
-        },
-        posts = postsList,
-        onCameraClick = { showCreatePostDialog = true },
-        onAddStoryClick = { showCreatePostDialog = true },
-        modifier = modifier
-    )
-}
-
-/**
- * Sobrecarga Stateless de ComunidadScreen equivalente a la versión de React.
- */
-@Composable
-fun ComunidadScreen(
-    likedPostIds: Set<Int>,
-    onToggleLike: (Int) -> Unit,
-    bookmarkedPostIds: Set<Int>,
-    onToggleBookmark: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    stories: List<Story> = SAMPLE_STORIES,
-    posts: List<Post> = SAMPLE_POSTS,
-    onAddStoryClick: () -> Unit = {},
-    onCameraClick: () -> Unit = {},
-    onStoryClick: (Story) -> Unit = {},
-    onCommentClick: (Post) -> Unit = {}
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = Color(0xFFF9FAFB)
     ) {
-        // 1. Encabezado de la Comunidad
-        HeaderSection(
-            onCameraClick = onCameraClick
-        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
+            HeaderSection(
+                onCameraClick = { showCreatePostDialog = true },
+                onRefreshClick = { loadPosts(reset = true) }
+            )
 
-        // 2. Historias (Stories Row)
-        StoriesSection(
-            stories = stories,
-            onAddStoryClick = onAddStoryClick,
-            onStoryClick = onStoryClick
-        )
+            // Contenido principal
+            if (isLoadingInitial) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 60.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(
+                            color = primaryColor,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Cargando comunidad...",
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                }
+            } else if (errorMessage != null) {
+                // Mensaje de Error con Reintentar
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DynamicFeed,
+                            contentDescription = null,
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No se pudieron obtener las publicaciones",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF374151),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = errorMessage ?: "",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                        )
+                        Button(
+                            onClick = { loadPosts(reset = true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Reintentar", color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+                }
+            } else if (postsList.isEmpty()) {
+                // Estado Vacío (Sin publicaciones aún en la BD)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Color(0xFFFFF3ED), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Pets,
+                                contentDescription = null,
+                                tint = primaryColor,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Aún no hay publicaciones",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Sé el primero de la comunidad en compartir una foto o anécdota de tu mascota.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B7280),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 20.dp)
+                        )
+                        Button(
+                            onClick = { showCreatePostDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Crear primera publicación", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            } else {
+                // Feed de Publicaciones Reales Paginadas
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    itemsIndexed(postsList) { index, post ->
+                        val postId = post.id ?: "post_$index"
+                        val isLiked = likedPostIds.contains(postId)
 
-        // 3. Feed de Publicaciones
-        FeedSection(
-            posts = posts,
-            likedPostIds = likedPostIds,
-            onToggleLike = onToggleLike,
-            bookmarkedPostIds = bookmarkedPostIds,
-            onToggleBookmark = onToggleBookmark,
-            onCommentClick = onCommentClick
-        )
+                        RealPostCard(
+                            post = post,
+                            isLiked = isLiked,
+                            onToggleLike = {
+                                likedPostIds = if (isLiked) likedPostIds - postId else likedPostIds + postId
+                            }
+                        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+                        if (index < postsList.size - 1) {
+                            HorizontalDivider(
+                                color = Color(0xFFF3F4F6),
+                                thickness = 6.dp
+                            )
+                        }
+                    }
+
+                    // Botón / Indicador para cargar más publicaciones (Paginación de 10 en 10)
+                    if (hasMorePosts) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isLoadingMore) {
+                                    CircularProgressIndicator(
+                                        color = primaryColor,
+                                        strokeWidth = 2.5.dp,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { loadPosts(reset = false) },
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = primaryColor)
+                                    ) {
+                                        Text("Cargar más publicaciones", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun HeaderSection(
-    onCameraClick: () -> Unit
+    onCameraClick: () -> Unit,
+    onRefreshClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 12.dp, bottom = 16.dp),
+            .background(Color.White)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "Comunidad",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Serif,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFE8703A))
-                .clickable { onCameraClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.PhotoCamera,
-                contentDescription = "Crear publicación",
-                modifier = Modifier.size(18.dp),
-                tint = Color.White
+        Column {
+            Text(
+                text = "COMUNIDAD",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.2.sp,
+                color = Color(0xFF9CA3AF)
+            )
+            Text(
+                text = "Mundo PetCare 🐾",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                color = Color(0xFF1F2937)
             )
         }
-    }
-}
 
-@Composable
-private fun StoriesSection(
-    stories: List<Story>,
-    onAddStoryClick: () -> Unit,
-    onStoryClick: (Story) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 16.dp)
-    ) {
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Ítem "Tu historia"
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.clickable { onAddStoryClick() }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .border(
-                                2.dp,
-                                MaterialTheme.colorScheme.outlineVariant,
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Agregar historia",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Text(
-                        text = "Tu historia",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFF3F4F6))
+                    .clickable { onRefreshClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = "Actualizar",
+                    tint = Color(0xFF4B5563),
+                    modifier = Modifier.size(18.dp)
+                )
             }
 
-            // Historias de Mascotas
-            items(stories) { story ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.clickable { onStoryClick(story) }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFFE8703A),
-                                        Color(0xFFF59E0B)
-                                    )
-                                )
-                            )
-                            .padding(2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = story.img,
-                            contentDescription = story.name,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    Text(
-                        text = story.name,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFE8703A))
+                    .clickable { onCameraClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PhotoCamera,
+                    contentDescription = "Crear publicación",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        HorizontalDivider(
-            color = Color(0xFFE5E7EB),
-            thickness = 1.dp
-        )
     }
 }
 
 @Composable
-private fun FeedSection(
-    posts: List<Post>,
-    likedPostIds: Set<Int>,
-    onToggleLike: (Int) -> Unit,
-    bookmarkedPostIds: Set<Int>,
-    onToggleBookmark: (Int) -> Unit,
-    onCommentClick: (Post) -> Unit
+private fun RealPostCard(
+    post: PostEntity,
+    isLiked: Boolean,
+    onToggleLike: () -> Unit
 ) {
-    Column {
-        posts.forEachIndexed { index, post ->
-            val isLiked = likedPostIds.contains(post.id)
-            val isBookmarked = bookmarkedPostIds.contains(post.id)
-            val currentLikes = post.likes + if (isLiked) 1 else 0
-
-            Column(
-                modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+        ) {
+            // Header del Post (Usuario y Mascota)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Encabezado del Post
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    AsyncImage(
-                        model = post.avatar,
-                        contentDescription = post.user,
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = post.user,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "${post.pet} · ${post.time}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            .background(Color(0xFFFFF3ED)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!post.userAvatar.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = post.userAvatar,
+                                contentDescription = post.userName,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = (post.userName ?: "U").take(1).uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE8703A),
+                                fontSize = 16.sp
+                            )
+                        }
                     }
 
-                    Icon(
-                        imageVector = Icons.Outlined.MoreHoriz,
-                        contentDescription = "Opciones",
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { /* onMoreClick */ },
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        Text(
+                            text = post.userName ?: "Usuario",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937)
+                        )
+                        Text(
+                            text = if (!post.petName.isNullOrBlank()) "con ${post.petName}" else "Dueño de mascota",
+                            fontSize = 11.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
                 }
 
-                // Texto del Post
-                Text(
-                    text = post.text,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 12.dp)
+                Icon(
+                    imageVector = Icons.Outlined.MoreHoriz,
+                    contentDescription = "Opciones",
+                    tint = Color(0xFF9CA3AF),
+                    modifier = Modifier.size(20.dp)
                 )
+            }
 
-                // Imagen adjunta (si aplica)
-                if (post.img != null) {
-                    AsyncImage(
-                        model = post.img,
-                        contentDescription = "Publicación de comunidad",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+            // Texto de la Publicación
+            if (post.content.isNotBlank()) {
+                Text(
+                    text = post.content,
+                    fontSize = 14.sp,
+                    color = Color(0xFF374151),
+                    lineHeight = 20.sp,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
 
-                // Barra de Acciones (Like, Comentarios, Guardar)
-                Row(
+            // Foto de Cloudinary (si existe)
+            if (!post.photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = post.photoUrl,
+                    contentDescription = "Foto de publicación",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                        .padding(top = 4.dp)
+                        .aspectRatio(1.33f)
+                        .background(Color(0xFFF3F4F6)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            // Barra de Interacciones
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón Me gusta
+                    // Me gusta
                     Row(
-                        modifier = Modifier.clickable { onToggleLike(post.id) },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.clickable { onToggleLike() }
                     ) {
                         Icon(
                             imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Me gusta",
-                            modifier = Modifier.size(18.dp),
-                            tint = if (isLiked) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (isLiked) Color(0xFFEF4444) else Color(0xFF4B5563),
+                            modifier = Modifier.size(22.dp)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "$currentLikes",
-                            fontSize = 12.sp,
+                            text = "${post.likesCount + if (isLiked) 1 else 0}",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (isLiked) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isLiked) Color(0xFFEF4444) else Color(0xFF4B5563)
                         )
                     }
 
-                    // Botón Comentarios
+                    // Comentarios
                     Row(
-                        modifier = Modifier.clickable { onCommentClick(post) },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ChatBubbleOutline,
                             contentDescription = "Comentarios",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = Color(0xFF4B5563),
+                            modifier = Modifier.size(20.dp)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "${post.comments}",
-                            fontSize = 12.sp,
+                            text = "${post.commentsCount}",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF4B5563)
                         )
                     }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Botón Guardar
-                    Icon(
-                        imageVector = if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Guardar",
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { onToggleBookmark(post.id) },
-                        tint = if (isBookmarked) Color(0xFFE8703A) else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
 
-                if (index < posts.size - 1) {
-                    HorizontalDivider(
-                        color = Color(0xFFE5E7EB),
-                        thickness = 1.dp
+                if (!post.createdAt.isNullOrEmpty()) {
+                    Text(
+                        text = post.createdAt.take(10),
+                        fontSize = 11.sp,
+                        color = Color(0xFF9CA3AF)
                     )
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ComunidadScreenPreview() {
-    PetCare360Theme {
-        ComunidadScreen()
     }
 }

@@ -254,4 +254,126 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             Result.failure(e)
         }
     }
+
+    // ==========================================
+    // COMUNIDAD (posts) - Paginación de 10 en 10
+    // ==========================================
+
+    suspend fun getPosts(limit: Int = 10, offset: Int = 0): Result<List<com.example.petcare360.data.model.PostEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "${SupabaseConfig.REST_URL}/posts?select=*&order=created_at.desc&limit=$limit&offset=$offset"
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .get()
+
+            buildHeaders(requiresAuth = false).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.PostEntity>>() {}.type
+                val posts: List<com.example.petcare360.data.model.PostEntity> = gson.fromJson(body, listType)
+                Result.success(posts)
+            } else {
+                Result.failure(Exception("Error al obtener posts: $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createPost(post: com.example.petcare360.data.model.PostEntity): Result<com.example.petcare360.data.model.PostEntity> = withContext(Dispatchers.IO) {
+        try {
+            val postWithUser = post.copy(
+                userId = sessionManager.getUserId(),
+                userName = sessionManager.getUserName() ?: post.userName ?: "Usuario"
+            )
+            val body = gson.toJson(postWithUser).toRequestBody(jsonMediaType)
+
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/posts")
+                .post(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.PostEntity>>() {}.type
+                val inserted: List<com.example.petcare360.data.model.PostEntity> = gson.fromJson(responseBody, listType)
+                if (inserted.isNotEmpty()) {
+                    Result.success(inserted[0])
+                } else {
+                    Result.success(postWithUser)
+                }
+            } else {
+                Result.failure(Exception("Error al crear post: $responseBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ==========================================
+    // HISTORIAL MÉDICO Y CONSULTAS (medical_records)
+    // ==========================================
+
+    suspend fun getMedicalRecords(petId: String? = null): Result<List<com.example.petcare360.data.model.MedicalRecordEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val url = if (petId != null) {
+                "${SupabaseConfig.REST_URL}/medical_records?pet_id=eq.$petId&select=*&order=date.desc"
+            } else {
+                "${SupabaseConfig.REST_URL}/medical_records?select=*&order=date.desc"
+            }
+
+            val requestBuilder = Request.Builder()
+                .url(url)
+                .get()
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.MedicalRecordEntity>>() {}.type
+                val records: List<com.example.petcare360.data.model.MedicalRecordEntity> = gson.fromJson(body, listType)
+                Result.success(records)
+            } else {
+                Result.failure(Exception("Error al obtener registros médicos: $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createMedicalRecord(record: com.example.petcare360.data.model.MedicalRecordEntity): Result<com.example.petcare360.data.model.MedicalRecordEntity> = withContext(Dispatchers.IO) {
+        try {
+            val body = gson.toJson(record).toRequestBody(jsonMediaType)
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/medical_records")
+                .post(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.MedicalRecordEntity>>() {}.type
+                val inserted: List<com.example.petcare360.data.model.MedicalRecordEntity> = gson.fromJson(responseBody, listType)
+                if (inserted.isNotEmpty()) {
+                    Result.success(inserted[0])
+                } else {
+                    Result.success(record)
+                }
+            } else {
+                Result.failure(Exception("Error al crear registro médico: $responseBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

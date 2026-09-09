@@ -30,59 +30,67 @@ class CloudinaryManager(private val context: Context) {
         }
     }
 
-    suspend fun uploadImage(imageUri: Uri): Result<String> = suspendCancellableCoroutine { continuation ->
+    suspend fun uploadImage(imageUri: Uri): Result<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
-            // Copiar el stream de la URI a un archivo temporal en cache para evitar problemas de permisos de URI
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-            val tempFile = java.io.File(context.cacheDir, "upload_${System.currentTimeMillis()}.jpg")
-            
-            if (inputStream != null) {
-                tempFile.outputStream().use { outputStream ->
-                    inputStream.copyTo(outputStream)
+            kotlinx.coroutines.withTimeout(30000L) {
+                suspendCancellableCoroutine { continuation ->
+                    try {
+                        val inputStream = context.contentResolver.openInputStream(imageUri)
+                        val tempFile = java.io.File(context.cacheDir, "upload_${System.currentTimeMillis()}.jpg")
+
+                        if (inputStream != null) {
+                            tempFile.outputStream().use { outputStream ->
+                                inputStream.copyTo(outputStream)
+                            }
+                            inputStream.close()
+                        }
+
+                        val fileToUpload = if (tempFile.exists() && tempFile.length() > 0) tempFile.absolutePath else imageUri.toString()
+
+                        MediaManager.get().upload(fileToUpload)
+                            .option("folder", "petcare360")
+                            .callback(object : UploadCallback {
+                                override fun onStart(requestId: String) {}
+
+                                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+
+                                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                                    try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
+
+                                    val secureUrl = resultData["secure_url"] as? String
+                                        ?: resultData["url"] as? String
+                                        ?: ""
+                                    if (continuation.isActive) {
+                                        continuation.resume(Result.success(secureUrl))
+                                    }
+                                }
+
+                                override fun onError(requestId: String, error: ErrorInfo) {
+                                    try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
+                                    if (continuation.isActive) {
+                                        continuation.resume(Result.failure(Exception("Cloudinary: ${error.description}")))
+                                    }
+                                }
+
+                                override fun onReschedule(requestId: String, error: ErrorInfo) {
+                                    try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
+                                    if (continuation.isActive) {
+                                        continuation.resume(Result.failure(Exception("Subida reprogramada: ${error.description}")))
+                                    }
+                                }
+                            })
+                            .dispatch()
+                    } catch (e: Exception) {
+                        if (continuation.isActive) {
+                            continuation.resume(Result.failure(e))
+                        }
+                    }
                 }
-                inputStream.close()
             }
-
-            val fileToUpload = if (tempFile.exists() && tempFile.length() > 0) tempFile.absolutePath else imageUri.toString()
-
-            MediaManager.get().upload(fileToUpload)
-                .option("folder", "petcare360")
-                .callback(object : UploadCallback {
-                    override fun onStart(requestId: String) {}
-
-                    override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
-
-                    override fun onSuccess(requestId: String, resultData: Map<*, *>) {
-                        // Limpiar archivo temporal si existe
-                        try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
-
-                        val secureUrl = resultData["secure_url"] as? String
-                            ?: resultData["url"] as? String
-                            ?: ""
-                        if (continuation.isActive) {
-                            continuation.resume(Result.success(secureUrl))
-                        }
-                    }
-
-                    override fun onError(requestId: String, error: ErrorInfo) {
-                        try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
-                        if (continuation.isActive) {
-                            continuation.resume(Result.failure(Exception(error.description)))
-                        }
-                    }
-
-                    override fun onReschedule(requestId: String, error: ErrorInfo) {
-                        try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
-                        if (continuation.isActive) {
-                            continuation.resume(Result.failure(Exception("Upload rescheduled: ${error.description}")))
-                        }
-                    }
-                })
-                .dispatch()
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Result.failure(Exception("Tiempo de espera agotado al subir imagen a Cloudinary (30s)"))
         } catch (e: Exception) {
-            if (continuation.isActive) {
-                continuation.resume(Result.failure(e))
-            }
+            Result.failure(e)
         }
     }
 }

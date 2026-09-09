@@ -82,3 +82,16 @@ data class ReviewEntity(
     @SerializedName("comment") val comment: String? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
+
+data class PostEntity(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("user_id") val userId: String? = null,
+    @SerializedName("user_name") val userName: String? = null,
+    @SerializedName("user_avatar") val userAvatar: String? = null,
+    @SerializedName("pet_name") val petName: String? = null,
+    @SerializedName("content") val content: String,
+    @SerializedName("photo_url") val photoUrl: String? = null,
+    @SerializedName("likes_count") val likesCount: Int = 0,
+    @SerializedName("comments_count") val commentsCount: Int = 0,
+    @SerializedName("created_at") val createdAt: String? = null
+)

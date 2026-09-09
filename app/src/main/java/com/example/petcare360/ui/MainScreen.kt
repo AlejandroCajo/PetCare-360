@@ -95,20 +95,11 @@ fun MainScreen(
             when (currentTab) {
                 NavTab.INICIO -> HomeScreen(
                     userName = userName,
+                    pets = petsList,
                     cloudinaryManager = cloudinaryManager,
+                    supabaseClient = supabaseClient,
                     onAddPet = { newPet ->
-                        coroutineScope.launch {
-                            if (supabaseClient != null) {
-                                val res = supabaseClient.createPet(newPet)
-                                res.onSuccess { created ->
-                                    petsList = listOf(created) + petsList
-                                }.onFailure {
-                                    petsList = listOf(newPet) + petsList
-                                }
-                            } else {
-                                petsList = listOf(newPet) + petsList
-                            }
-                        }
+                        petsList = listOf(newPet) + petsList
                     },
                     onLogoutClick = onLogout
                 )
@@ -116,7 +107,9 @@ fun MainScreen(
                 NavTab.PERDIDOS -> PerdidosScreen()
                 NavTab.COMUNIDAD -> ComunidadScreen(
                     cloudinaryManager = cloudinaryManager,
-                    userName = userName
+                    supabaseClient = supabaseClient,
+                    userName = userName,
+                    userPets = petsList
                 )
                 NavTab.SERVICIOS -> ServiciosScreen()
                 NavTab.PERFIL -> {
@@ -128,19 +121,9 @@ fun MainScreen(
                             userAvatar = currentUserAvatar,
                             pets = petsList,
                             cloudinaryManager = cloudinaryManager,
+                            supabaseClient = supabaseClient,
                             onAddPet = { newPet ->
-                                coroutineScope.launch {
-                                    if (supabaseClient != null) {
-                                        val res = supabaseClient.createPet(newPet)
-                                        res.onSuccess { created ->
-                                            petsList = listOf(created) + petsList
-                                        }.onFailure {
-                                            petsList = listOf(newPet) + petsList
-                                        }
-                                    } else {
-                                        petsList = listOf(newPet) + petsList
-                                    }
-                                }
+                                petsList = listOf(newPet) + petsList
                             },
                             onAvatarUpdated = { newUrl ->
                                 currentUserAvatar = newUrl
