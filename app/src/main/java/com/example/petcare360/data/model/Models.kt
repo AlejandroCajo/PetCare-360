@@ -44,9 +44,13 @@ data class PetEntity(
 data class MedicalRecordEntity(
     @SerializedName("id") val id: String? = null,
     @SerializedName("pet_id") val petId: String,
-    @SerializedName("record_type") val recordType: String, // 'vacuna', 'cirugia', 'receta'
+    @SerializedName("record_type") val recordType: String, // 'vacuna', 'medicina', 'visita'
     @SerializedName("title") val title: String,
     @SerializedName("date") val date: String,
+    @SerializedName("status") val status: String? = null, // for vaccines: 'done' or 'pending'
+    @SerializedName("description") val description: String? = null, // for meds
+    @SerializedName("next_date") val nextDate: String? = null, // for meds next dose
+    @SerializedName("vet_name") val vetName: String? = null, // for visits
     @SerializedName("document_url") val documentUrl: String? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
@@ -69,8 +73,12 @@ data class BusinessEntity(
     @SerializedName("id") val id: String? = null,
     @SerializedName("owner_id") val ownerId: String? = null,
     @SerializedName("name") val name: String,
-    @SerializedName("category") val category: String, // 'vet', 'park', 'groomer'
+    @SerializedName("category") val category: String, // 'vet', 'groomer', 'walker', 'daycare', 'shop'
     @SerializedName("avg_rating") val avgRating: Double = 0.0,
+    @SerializedName("address") val address: String? = null,
+    @SerializedName("phone") val phone: String? = null,
+    @SerializedName("price_info") val priceInfo: String? = null,
+    @SerializedName("photo_url") val photoUrl: String? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
 
@@ -89,9 +97,59 @@ data class PostEntity(
     @SerializedName("user_name") val userName: String? = null,
     @SerializedName("user_avatar") val userAvatar: String? = null,
     @SerializedName("pet_name") val petName: String? = null,
+    @SerializedName("pet_id") val petId: String? = null,
+    @SerializedName("pet_avatar") val petAvatar: String? = null,
     @SerializedName("content") val content: String,
     @SerializedName("photo_url") val photoUrl: String? = null,
     @SerializedName("likes_count") val likesCount: Int = 0,
     @SerializedName("comments_count") val commentsCount: Int = 0,
     @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class BusinessServiceEntity(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("business_id") val businessId: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("price") val price: Double,
+    @SerializedName("duration_minutes") val durationMinutes: Int? = null,
+    @SerializedName("image_url") val imageUrl: String? = null
+)
+
+data class BusinessProductEntity(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("business_id") val businessId: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("price") val price: Double,
+    @SerializedName("stock") val stock: Int = 0,
+    @SerializedName("image_url") val imageUrl: String? = null
+)
+
+data class AppointmentEntity(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("user_id") val userId: String? = null,
+    @SerializedName("pet_id") val petId: String? = null,
+    @SerializedName("business_id") val businessId: String,
+    @SerializedName("service_id") val serviceId: String? = null,
+    @SerializedName("appointment_date") val appointmentDate: String,
+    @SerializedName("status") val status: String = "pending",
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class OrderEntity(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("user_id") val userId: String? = null,
+    @SerializedName("business_id") val businessId: String,
+    @SerializedName("total_amount") val totalAmount: Double,
+    @SerializedName("status") val status: String = "pending",
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class OrderItemEntity(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("order_id") val orderId: String,
+    @SerializedName("product_id") val productId: String,
+    @SerializedName("quantity") val quantity: Int,
+    @SerializedName("price_at_purchase") val priceAtPurchase: Double
 )

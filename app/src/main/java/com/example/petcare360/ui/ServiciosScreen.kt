@@ -1,5 +1,8 @@
 package com.example.petcare360.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,9 +16,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,20 +27,30 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.ContentCut
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.MedicalServices
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,123 +58,94 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.petcare360.ui.theme.PetCare360Theme
+import com.example.petcare360.data.model.BusinessEntity
+import com.example.petcare360.data.remote.SupabaseClient
+import kotlinx.coroutines.launch
 
-data class PetService(
-    val id: String,
-    val name: String,
-    val type: String,
-    val rating: Double,
-    val reviews: Int,
-    val dist: String,
-    val price: String,
-    val available: Boolean,
-    val img: String,
-    val tag: String? = null
-)
+val SERVICE_CATEGORIES = listOf("Todos", "Veterinaria", "Peluquería", "Paseador", "Guardería", "Pet Shop")
 
-val SERVICE_CATS = listOf("Todos", "Veterinaria", "Peluquería", "Paseador", "Guardería")
-
-val SAMPLE_SERVICES = listOf(
-    PetService(
-        id = "1",
-        name = "Clínica Veterinaria VetCare",
-        type = "Veterinaria",
-        rating = 4.9,
-        reviews = 128,
-        dist = "1.2 km",
-        price = "Consulta $25",
-        available = true,
-        img = "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=200&h=200&fit=crop&auto=format",
-        tag = "TOP"
-    ),
-    PetService(
-        id = "2",
-        name = "Spa & Peluquería Canina HappyPaws",
-        type = "Peluquería",
-        rating = 4.8,
-        reviews = 95,
-        dist = "2.5 km",
-        price = "Baño y corte $30",
-        available = true,
-        img = "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=200&h=200&fit=crop&auto=format"
-    ),
-    PetService(
-        id = "3",
-        name = "Paseos Felices con Mateo",
-        type = "Paseador",
-        rating = 4.7,
-        reviews = 42,
-        dist = "0.8 km",
-        price = "1 hora $15",
-        available = false,
-        img = "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=200&h=200&fit=crop&auto=format"
-    ),
-    PetService(
-        id = "4",
-        name = "Hotel & Guardería Pet Paradise",
-        type = "Guardería",
-        rating = 4.9,
-        reviews = 76,
-        dist = "3.8 km",
-        price = "Día completo $40",
-        available = true,
-        img = "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=200&h=200&fit=crop&auto=format",
-        tag = "PROMO"
-    )
-)
-
-/**
- * Sobrecarga Stateful de ServiciosScreen.
- */
-@Composable
-fun ServiciosScreen(
-    modifier: Modifier = Modifier
-) {
-    var activeCat by remember { mutableStateOf("Todos") }
-    var searchQuery by remember { mutableStateOf("") }
-
-    ServiciosScreen(
-        activeCat = activeCat,
-        onActiveCatChange = { activeCat = it },
-        searchQuery = searchQuery,
-        onSearchQueryChange = { searchQuery = it },
-        modifier = modifier
-    )
+fun categoryToDbCode(cat: String): String? = when (cat) {
+    "Veterinaria" -> "vet"
+    "Peluquería" -> "groomer"
+    "Paseador" -> "walker"
+    "Guardería" -> "daycare"
+    "Pet Shop" -> "shop"
+    else -> null
 }
 
-/**
- * Sobrecarga Stateless de ServiciosScreen equivalente a la versión de React.
- */
+fun dbCodeToDisplay(dbCat: String): String = when (dbCat.lowercase()) {
+    "vet" -> "Veterinaria 🏥"
+    "groomer" -> "Peluquería & Spa ✂️"
+    "walker" -> "Paseador 🦮"
+    "daycare" -> "Guardería & Hotel 🏨"
+    "shop" -> "Pet Shop & Alimentos 🛍️"
+    else -> dbCat.replaceFirstChar { it.uppercase() }
+}
+
 @Composable
 fun ServiciosScreen(
-    activeCat: String,
-    onActiveCatChange: (String) -> Unit,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    categories: List<String> = SERVICE_CATS,
-    services: List<PetService> = SAMPLE_SERVICES,
-    onFilterClick: () -> Unit = {},
-    onBookPromoClick: () -> Unit = {},
-    onBookServiceClick: (PetService) -> Unit = {}
+    supabaseClient: SupabaseClient? = null,
+    modifier: Modifier = Modifier
 ) {
-    val filteredServices = remember(activeCat, searchQuery, services) {
-        services.filter { svc ->
-            val matchesCat = if (activeCat == "Todos") true else svc.type == activeCat
-            val matchesSearch = searchQuery.isBlank() ||
-                svc.name.contains(searchQuery, ignoreCase = true) ||
-                svc.type.contains(searchQuery, ignoreCase = true)
-            matchesCat && matchesSearch
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val primaryColor = Color(0xFFE8703A)
+
+    var activeCat by remember { mutableStateOf("Todos") }
+    var searchQuery by remember { mutableStateOf("") }
+    var businessesList by remember { mutableStateOf<List<BusinessEntity>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    fun loadBusinesses() {
+        if (supabaseClient == null) {
+            isLoading = false
+            return
         }
+        isLoading = true
+        errorMessage = null
+        coroutineScope.launch {
+            val dbCat = categoryToDbCode(activeCat)
+            val result = supabaseClient.getBusinesses(category = dbCat)
+            isLoading = false
+            result.onSuccess { list ->
+                businessesList = list
+            }.onFailure { error ->
+                errorMessage = error.localizedMessage ?: "Error al cargar servicios"
+            }
+        }
+    }
+
+    LaunchedEffect(activeCat) {
+        loadBusinesses()
+    }
+
+    val filteredList = remember(businessesList, searchQuery) {
+        if (searchQuery.isBlank()) businessesList
+        else businessesList.filter { b ->
+            b.name.contains(searchQuery, ignoreCase = true) ||
+            (b.address ?: "").contains(searchQuery, ignoreCase = true) ||
+            (b.priceInfo ?: "").contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    var selectedBusiness by remember { mutableStateOf<BusinessEntity?>(null) }
+
+    if (selectedBusiness != null) {
+        BusinessDetailScreen(
+            business = selectedBusiness!!,
+            supabaseClient = supabaseClient,
+            onBack = { selectedBusiness = null }
+        )
+        return
     }
 
     Column(
@@ -169,32 +153,124 @@ fun ServiciosScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // 1. Encabezado (Título + Barra de Búsqueda y Filtro)
+        // 1. Header (Título + Barra de Búsqueda)
         HeaderSection(
             searchQuery = searchQuery,
-            onSearchQueryChange = onSearchQueryChange,
-            onFilterClick = onFilterClick
+            onSearchQueryChange = { searchQuery = it },
+            onRefreshClick = { loadBusinesses() }
         )
 
         // 2. Chips de Categoría
         CategoryPillsSection(
-            categories = categories,
+            categories = SERVICE_CATEGORIES,
             activeCat = activeCat,
-            onActiveCatChange = onActiveCatChange
+            onActiveCatChange = { activeCat = it }
         )
 
-        // 3. Banner Promocional
-        PromoBannerCard(
-            onBookPromoClick = onBookPromoClick
-        )
 
-        // 4. Lista de Servicios ("Cerca de ti")
-        ServiceListSection(
-            services = filteredServices,
-            onBookServiceClick = onBookServiceClick
-        )
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Servicios Disponibles (${filteredList.size})",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
 
-        Spacer(modifier = Modifier.height(24.dp))
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = primaryColor,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            if (isLoading && businessesList.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = primaryColor)
+                }
+            } else if (!errorMessage.isNullOrEmpty() && businessesList.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFFEF2F2),
+                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = "Error al conectar con servicios", fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
+                        Text(text = errorMessage!!, fontSize = 12.sp, color = Color(0xFFB91C1C), modifier = Modifier.padding(top = 4.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Button(
+                            onClick = { loadBusinesses() },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Reintentar")
+                        }
+                    }
+                }
+            } else if (filteredList.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Pets,
+                            contentDescription = null,
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "No se encontraron servicios",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4B5563)
+                        )
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "Intenta con otra búsqueda." else "Aún no hay negocios registrados en esta categoría.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            } else {
+                filteredList.forEach { business ->
+                    RealBusinessCard(
+                        business = business,
+                        onContactClick = {
+                            selectedBusiness = business
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -202,84 +278,91 @@ fun ServiciosScreen(
 private fun HeaderSection(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
-    onFilterClick: () -> Unit
+    onRefreshClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(Color.White)
             .padding(horizontal = 20.dp)
-            .padding(top = 12.dp, bottom = 16.dp)
+            .padding(top = 16.dp, bottom = 12.dp)
     ) {
-        Text(
-            text = "Servicios",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Serif,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Barra de Búsqueda
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "Buscar",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Buscar veterinarios, peluquerías...",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        }
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChange,
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
+            Column {
+                Text(
+                    text = "SERVICIOS & BIENESTAR",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.2.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+                Text(
+                    text = "Explorar Servicios",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif,
+                    color = Color(0xFF1F2937)
+                )
             }
 
-            // Botón de Filtro
-            Box(
+            IconButton(
+                onClick = onRefreshClick,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
-                    .clickable { onFilterClick() },
-                contentAlignment = Alignment.Center
+                    .size(36.dp)
+                    .background(Color(0xFFF3F4F6), CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Tune,
-                    contentDescription = "Filtros",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = "Actualizar",
+                    tint = Color(0xFF4B5563),
+                    modifier = Modifier.size(18.dp)
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Barra de Búsqueda
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFFF3F4F6),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "Buscar",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFF9CA3AF)
+                )
+
+                Box(modifier = Modifier.weight(1f)) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Buscar veterinarias, paseadores, spa...",
+                            fontSize = 13.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color(0xFF1F2937),
+                            fontSize = 13.sp
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }
@@ -292,9 +375,8 @@ private fun CategoryPillsSection(
     onActiveCatChange: (String) -> Unit
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.padding(bottom = 16.dp)
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(categories) { cat ->
             val isActive = activeCat == cat
@@ -302,7 +384,7 @@ private fun CategoryPillsSection(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
                     .background(
-                        if (isActive) Color(0xFFE8703A) else MaterialTheme.colorScheme.surfaceVariant
+                        if (isActive) Color(0xFFE8703A) else Color(0xFFF3F4F6)
                     )
                     .clickable { onActiveCatChange(cat) }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -310,300 +392,175 @@ private fun CategoryPillsSection(
                 Text(
                     text = cat,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isActive) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isActive) Color.White else Color(0xFF4B5563)
                 )
             }
         }
     }
 }
 
+
 @Composable
-private fun PromoBannerCard(
-    onBookPromoClick: () -> Unit
+private fun RealBusinessCard(
+    business: BusinessEntity,
+    onContactClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 20.dp)
-            .fillMaxWidth()
-            .height(112.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+    val primaryColor = Color(0xFFE8703A)
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        shadowElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AsyncImage(
-            model = "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=600&h=300&fit=crop&auto=format",
-            contentDescription = "Veterinaria con perro",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-
-        // Degradado de sombra oscuro a la izquierda
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.70f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        // Contenido del Banner
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(horizontal = 20.dp)
-        ) {
-            Text(
-                text = "OFERTA ESPECIAL",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 1.sp,
-                color = Color.White.copy(alpha = 0.85f)
-            )
-            Text(
-                text = "Primera consulta gratis",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onBookPromoClick,
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF1F2937)
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                modifier = Modifier.height(26.dp)
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = "Reservar ahora",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ServiceListSection(
-    services: List<PetService>,
-    onBookServiceClick: (PetService) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "Cerca de ti",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        if (services.isEmpty()) {
-            Text(
-                text = "No hay servicios disponibles en esta categoría.",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 32.dp)
-            )
-        } else {
-            services.forEach { svc ->
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    modifier = Modifier.fillMaxWidth()
+                // Imagen del negocio
+                Box(
+                    modifier = Modifier
+                        .size(74.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFF3ED)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Contenedor de la Imagen con Tag Opcional
-                            Box(modifier = Modifier.size(64.dp)) {
-                                AsyncImage(
-                                    model = svc.img,
-                                    contentDescription = svc.name,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentScale = ContentScale.Crop
-                                )
-
-                                if (svc.tag != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .offset(x = 4.dp, y = (-4).dp)
-                                            .clip(RoundedCornerShape(50))
-                                            .background(Color(0xFFF59E0B))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = svc.tag,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Detalles del Servicio
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = svc.name,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = svc.type,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFFE8703A)
-                                        )
-                                    }
-
-                                    // Rating
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Star,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(12.dp),
-                                            tint = Color(0xFFF59E0B)
-                                        )
-                                        Text(
-                                            text = "${svc.rating}",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "(${svc.reviews})",
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.LocationOn,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(12.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = svc.dist,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-
-                                    Text(
-                                        text = svc.price,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                // Estado de disponibilidad
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(
-                                                if (svc.available) Color(0xFF3D9E6B) else Color(0xFF9CA3AF),
-                                                CircleShape
-                                            )
-                                    )
-                                    Text(
-                                        text = if (svc.available) "Disponible hoy" else "Sin disponibilidad",
-                                        fontSize = 12.sp,
-                                        color = if (svc.available) Color(0xFF166534) else Color(0xFF6B7280)
-                                    )
-                                }
-                            }
+                    if (!business.photoUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = business.photoUrl,
+                            contentDescription = business.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        val icon = when (business.category.lowercase()) {
+                            "vet" -> Icons.Outlined.MedicalServices
+                            "groomer" -> Icons.Outlined.ContentCut
+                            "walker" -> Icons.Outlined.Pets
+                            "daycare" -> Icons.Outlined.Home
+                            else -> Icons.Outlined.ShoppingBag
                         }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = primaryColor,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
 
-                        // Botón de Reserva
-                        Button(
-                            onClick = { onBookServiceClick(svc) },
-                            enabled = svc.available,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFE8703A),
-                                contentColor = Color.White,
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            contentPadding = PaddingValues(vertical = 10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp)
-                                .height(40.dp)
+                // Información
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = business.name,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Rating
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = Color(0xFFF59E0B)
+                            )
                             Text(
-                                text = if (svc.available) "Reservar cita" else "Sin disponibilidad",
+                                text = String.format("%.1f", business.avgRating),
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
                             )
                         }
+                    }
+
+                    // Categoría
+                    Text(
+                        text = dbCodeToDisplay(business.category),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = primaryColor,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+
+                    // Dirección / Teléfono
+                    if (!business.address.isNullOrBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = Color(0xFF9CA3AF)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = business.address!!,
+                                fontSize = 11.sp,
+                                color = Color(0xFF6B7280),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    // Precio
+                    if (!business.priceInfo.isNullOrBlank()) {
+                        Text(
+                            text = "🏷️ ${business.priceInfo}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF047857),
+                            modifier = Modifier.padding(top = 3.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Botón Contactar / Reservar
+            Button(
+                onClick = onContactClick,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                contentPadding = PaddingValues(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!business.phone.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.Phone,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Llamar / Contactar (${business.phone})", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    } else {
+                        Text("Reservar Cita", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ServiciosScreenPreview() {
-    PetCare360Theme {
-        ServiciosScreen()
     }
 }

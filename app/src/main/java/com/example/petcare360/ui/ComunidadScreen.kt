@@ -73,6 +73,7 @@ fun ComunidadScreen(
     cloudinaryManager: CloudinaryManager? = null,
     supabaseClient: SupabaseClient? = null,
     userName: String = "Alejandro",
+    userAvatar: String? = null,
     userPets: List<PetEntity> = emptyList(),
     modifier: Modifier = Modifier
 ) {
@@ -136,6 +137,7 @@ fun ComunidadScreen(
             cloudinaryManager = cloudinaryManager,
             supabaseClient = supabaseClient,
             userName = userName,
+            userAvatar = userAvatar,
             userPets = userPets,
             onDismiss = { showCreatePostDialog = false },
             onPostCreated = { createdPost ->
@@ -424,6 +426,7 @@ private fun RealPostCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val displayAvatar = if (!post.petName.isNullOrBlank() && !post.petAvatar.isNullOrEmpty()) post.petAvatar else post.userAvatar
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -431,16 +434,16 @@ private fun RealPostCard(
                             .background(Color(0xFFFFF3ED)),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (!post.userAvatar.isNullOrEmpty()) {
+                        if (!displayAvatar.isNullOrEmpty()) {
                             AsyncImage(
-                                model = post.userAvatar,
+                                model = displayAvatar,
                                 contentDescription = post.userName,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
                             Text(
-                                text = (post.userName ?: "U").take(1).uppercase(),
+                                text = (post.petName?.take(1) ?: post.userName?.take(1) ?: "U").uppercase(),
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFE8703A),
                                 fontSize = 16.sp
@@ -451,14 +454,31 @@ private fun RealPostCard(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = post.userName ?: "Usuario",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                            if (!post.petName.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFFFF3ED), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "🐾 ${post.petName}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFFE8703A)
+                                    )
+                                }
+                            }
+                        }
                         Text(
-                            text = post.userName ?: "Usuario",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
-                        )
-                        Text(
-                            text = if (!post.petName.isNullOrBlank()) "con ${post.petName}" else "Dueño de mascota",
+                            text = if (!post.petName.isNullOrBlank()) "Publicó sobre ${post.petName}" else "Miembro de la comunidad",
                             fontSize = 11.sp,
                             color = Color(0xFF6B7280)
                         )

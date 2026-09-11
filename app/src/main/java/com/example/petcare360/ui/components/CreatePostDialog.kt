@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -65,15 +66,17 @@ fun CreatePostDialog(
     cloudinaryManager: CloudinaryManager,
     supabaseClient: SupabaseClient? = null,
     userName: String,
+    userAvatar: String? = null,
     userPets: List<com.example.petcare360.data.model.PetEntity> = emptyList(),
     onDismiss: () -> Unit,
     onPostCreated: (PostEntity) -> Unit
 ) {
     val context = LocalContext.current
     var content by remember { mutableStateOf("") }
-    var selectedPetId by remember { mutableStateOf<String?>(null) }
+    var selectedPet by remember { mutableStateOf(userPets.firstOrNull()) }
     var petName by remember { mutableStateOf(userPets.firstOrNull()?.name ?: "") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var usePetPhoto by remember { mutableStateOf(true) }
     var isUploading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf<String?>(null) }
@@ -84,7 +87,17 @@ fun CreatePostDialog(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        selectedImageUri = uri
+        if (uri != null) {
+            selectedImageUri = uri
+            usePetPhoto = false
+        }
+    }
+
+    // Foto a previsualizar: la nueva seleccionada o la de la mascota elegida
+    val previewPhotoUrl = when {
+        selectedImageUri != null -> null // se previsualiza via URI
+        usePetPhoto && selectedPet?.photoUrl != null -> selectedPet?.photoUrl
+        else -> null
     }
 
     Dialog(
@@ -191,23 +204,23 @@ fun CreatePostDialog(
                     ) {
                         item {
                             androidx.compose.material3.FilterChip(
-                                selected = petName.isBlank(),
+                                selected = selectedPet == null,
                                 onClick = {
+                                    selectedPet = null
                                     petName = ""
-                                    selectedPetId = null
                                 },
                                 label = { Text("General 🐾", fontSize = 12.sp) },
                                 colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = primaryColor,
                                     selectedLabelColor = Color.White
                                 ),
-                                border = BorderStroke(1.dp, if (petName.isBlank()) primaryColor else Color(0xFFE5E7EB))
+                                border = BorderStroke(1.dp, if (selectedPet == null) primaryColor else Color(0xFFE5E7EB))
                             )
                         }
 
                         items(userPets.size) { index ->
                             val pet = userPets[index]
-                            val isSelected = petName == pet.name
+                            val isSelected = selectedPet?.id == pet.id
                             val emoji = when (pet.species.lowercase()) {
                                 "perro" -> "🐶"
                                 "gato" -> "🐱"
@@ -217,8 +230,11 @@ fun CreatePostDialog(
                             androidx.compose.material3.FilterChip(
                                 selected = isSelected,
                                 onClick = {
+                                    selectedPet = pet
                                     petName = pet.name
-                                    selectedPetId = pet.id
+                                    if (selectedImageUri == null) {
+                                        usePetPhoto = true
+                                    }
                                 },
                                 label = { Text("${pet.name} $emoji", fontSize = 12.sp) },
                                 colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
@@ -266,11 +282,11 @@ fun CreatePostDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Selector de Imagen
+                // Selector de Imagen / Foto vinculada de la Mascota
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .height(150.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFFF9FAFB))
                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(14.dp))
@@ -287,9 +303,34 @@ fun CreatePostDialog(
                         AsyncImage(
                             model = selectedImageUri,
                             contentDescription = "Foto seleccionada",
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(8.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Cambiar foto 📷", color = Color.White, fontSize = 11.sp)
+                        }
+                    } else if (previewPhotoUrl != null) {
+                        AsyncImage(
+                            model = previewPhotoUrl,
+                            contentDescription = "Foto de ${selectedPet?.name}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(8.dp)
+                                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Foto de ${selectedPet?.name} 🐾 (Toca para cambiar)", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        }
                     } else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -299,11 +340,11 @@ fun CreatePostDialog(
                                 imageVector = Icons.Default.AddPhotoAlternate,
                                 contentDescription = "Subir foto",
                                 tint = primaryColor,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Agregar foto (Cloudinary)",
+                                text = "Agregar foto (o selecciona una mascota)",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF4B5563)
@@ -318,18 +359,24 @@ fun CreatePostDialog(
                 Button(
                     onClick = {
                         val trimmedContent = content.trim()
-                        if (trimmedContent.isBlank() && selectedImageUri == null) {
+                        val finalPhoto = when {
+                            selectedImageUri != null -> null // se subirá
+                            usePetPhoto && selectedPet?.photoUrl != null -> selectedPet?.photoUrl
+                            else -> null
+                        }
+
+                        if (trimmedContent.isBlank() && selectedImageUri == null && finalPhoto == null) {
                             errorText = "Por favor escribe un mensaje o selecciona una foto para publicar."
                             return@Button
                         }
 
                         isUploading = true
                         errorText = null
-                        statusMessage = "Subiendo imagen a Cloudinary..."
 
                         coroutineScope.launch {
-                            var uploadedUrl: String? = null
+                            var uploadedUrl: String? = finalPhoto
                             if (selectedImageUri != null) {
+                                statusMessage = "Subiendo imagen a Cloudinary..."
                                 val uploadResult = cloudinaryManager.uploadImage(selectedImageUri!!)
                                 uploadResult.onSuccess { url ->
                                     uploadedUrl = url
@@ -345,8 +392,10 @@ fun CreatePostDialog(
                             val postEntity = PostEntity(
                                 content = trimmedContent,
                                 photoUrl = uploadedUrl,
-                                petName = petName.trim().ifBlank { null },
-                                userName = userName
+                                petName = (selectedPet?.name ?: petName).trim().ifBlank { null },
+                                petId = selectedPet?.id,
+                                userName = userName,
+                                userAvatar = userAvatar
                             )
 
                             if (supabaseClient != null) {
@@ -366,7 +415,7 @@ fun CreatePostDialog(
                             }
                         }
                     },
-                    enabled = !isUploading && (content.isNotBlank() || selectedImageUri != null),
+                    enabled = !isUploading && (content.isNotBlank() || selectedImageUri != null || (usePetPhoto && selectedPet?.photoUrl != null)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),

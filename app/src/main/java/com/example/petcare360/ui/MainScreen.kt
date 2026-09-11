@@ -109,9 +109,10 @@ fun MainScreen(
                     cloudinaryManager = cloudinaryManager,
                     supabaseClient = supabaseClient,
                     userName = userName,
+                    userAvatar = currentUserAvatar,
                     userPets = petsList
                 )
-                NavTab.SERVICIOS -> ServiciosScreen()
+                NavTab.SERVICIOS -> ServiciosScreen(supabaseClient = supabaseClient)
                 NavTab.PERFIL -> {
                     if (cloudinaryManager != null) {
                         ProfileScreen(

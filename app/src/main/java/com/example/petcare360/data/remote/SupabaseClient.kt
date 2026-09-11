@@ -38,7 +38,7 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             "Prefer" to "return=representation"
         )
         val token = sessionManager.getAccessToken()
-        if (requiresAuth && !token.isNullOrEmpty()) {
+        if (!token.isNullOrEmpty()) {
             headers["Authorization"] = "Bearer $token"
         } else {
             headers["Authorization"] = "Bearer ${SupabaseConfig.ANON_KEY}"
@@ -255,13 +255,55 @@ class SupabaseClient(private val sessionManager: SessionManager) {
         }
     }
 
+    suspend fun getBusinessServices(businessId: String): Result<List<com.example.petcare360.data.model.BusinessServiceEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "${SupabaseConfig.REST_URL}/business_services?business_id=eq.$businessId&select=*&order=created_at.desc"
+            val requestBuilder = Request.Builder().url(url).get()
+            buildHeaders(requiresAuth = false).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.BusinessServiceEntity>>() {}.type
+                val services: List<com.example.petcare360.data.model.BusinessServiceEntity> = gson.fromJson(body, listType)
+                Result.success(services)
+            } else {
+                Result.failure(Exception("Error al obtener servicios: $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getBusinessProducts(businessId: String): Result<List<com.example.petcare360.data.model.BusinessProductEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "${SupabaseConfig.REST_URL}/business_products?business_id=eq.$businessId&select=*&order=created_at.desc"
+            val requestBuilder = Request.Builder().url(url).get()
+            buildHeaders(requiresAuth = false).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.BusinessProductEntity>>() {}.type
+                val products: List<com.example.petcare360.data.model.BusinessProductEntity> = gson.fromJson(body, listType)
+                Result.success(products)
+            } else {
+                Result.failure(Exception("Error al obtener productos: $body"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ==========================================
     // COMUNIDAD (posts) - Paginación de 10 en 10
     // ==========================================
 
     suspend fun getPosts(limit: Int = 10, offset: Int = 0): Result<List<com.example.petcare360.data.model.PostEntity>> = withContext(Dispatchers.IO) {
         try {
-            val url = "${SupabaseConfig.REST_URL}/posts?select=*&order=created_at.desc&limit=$limit&offset=$offset"
+            val url = "${SupabaseConfig.REST_URL}/vw_posts_with_avatars?select=*&order=created_at.desc&limit=$limit&offset=$offset"
             val requestBuilder = Request.Builder()
                 .url(url)
                 .get()
@@ -285,11 +327,16 @@ class SupabaseClient(private val sessionManager: SessionManager) {
 
     suspend fun createPost(post: com.example.petcare360.data.model.PostEntity): Result<com.example.petcare360.data.model.PostEntity> = withContext(Dispatchers.IO) {
         try {
-            val postWithUser = post.copy(
-                userId = sessionManager.getUserId(),
-                userName = sessionManager.getUserName() ?: post.userName ?: "Usuario"
-            )
-            val body = gson.toJson(postWithUser).toRequestBody(jsonMediaType)
+            val postData = mutableMapOf<String, Any?>()
+            postData["user_id"] = sessionManager.getUserId()
+            postData["user_name"] = sessionManager.getUserName() ?: post.userName ?: "Usuario"
+            postData["user_avatar"] = post.userAvatar
+            postData["pet_name"] = post.petName
+            postData["pet_id"] = post.petId
+            postData["content"] = post.content
+            postData["photo_url"] = post.photoUrl
+            
+            val body = gson.toJson(postData).toRequestBody(jsonMediaType)
 
             val requestBuilder = Request.Builder()
                 .url("${SupabaseConfig.REST_URL}/posts")
@@ -306,7 +353,7 @@ class SupabaseClient(private val sessionManager: SessionManager) {
                 if (inserted.isNotEmpty()) {
                     Result.success(inserted[0])
                 } else {
-                    Result.success(postWithUser)
+                    Result.success(post)
                 }
             } else {
                 Result.failure(Exception("Error al crear post: $responseBody"))
