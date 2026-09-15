@@ -506,6 +506,20 @@ fun ProfileScreen(
 
                 2 -> {
                     // Pestaña Pedidos y Servicios
+                    var appointments by remember { mutableStateOf<List<com.example.petcare360.data.model.AppointmentEntity>>(emptyList()) }
+                    var orders by remember { mutableStateOf<List<com.example.petcare360.data.model.OrderEntity>>(emptyList()) }
+                    var isLoadingTab2 by remember { mutableStateOf(true) }
+
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        if (supabaseClient != null) {
+                            val resApp = supabaseClient.getAppointments()
+                            resApp.onSuccess { appointments = it }
+                            val resOrd = supabaseClient.getOrders()
+                            resOrd.onSuccess { orders = it }
+                        }
+                        isLoadingTab2 = false
+                    }
+
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
                             text = "Mis Reservas y Pedidos",
@@ -515,36 +529,64 @@ fun ProfileScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                        if (isLoadingTab2) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = primaryColor, modifier = Modifier.size(28.dp))
+                            }
+                        } else if (appointments.isEmpty() && orders.isEmpty()) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ShoppingBag,
-                                    contentDescription = null,
-                                    tint = Color(0xFF9CA3AF),
-                                    modifier = Modifier.size(40.dp)
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ShoppingBag,
+                                        contentDescription = null,
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "No tienes pedidos ni reservas activas",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF4B5563),
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = "Cuando reserves citas en veterinarias, paseos o servicios de estética, podrás gestionarlos desde aquí.",
+                                        color = Color(0xFF9CA3AF),
+                                        fontSize = 12.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            // Mostrar Reservas
+                            appointments.forEach { appt ->
+                                val associatedPet = pets.find { it.id == appt.petId }
+                                ConsultationCard(
+                                    title = "Reserva de Servicio",
+                                    petName = associatedPet?.name ?: "Mascota",
+                                    date = appt.appointmentDate ?: "Fecha pendiente",
+                                    type = "servicio"
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "No tienes pedidos ni reservas activas",
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF4B5563),
-                                    fontSize = 14.sp
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                            // Mostrar Pedidos
+                            orders.forEach { order ->
+                                ConsultationCard(
+                                    title = "Compra en PetShop",
+                                    petName = "Total: S/ ${order.totalAmount}",
+                                    date = order.createdAt ?: "Fecha pendiente",
+                                    type = "pedido"
                                 )
-                                Text(
-                                    text = "Cuando reserves citas en veterinarias, paseos o servicios de estética, podrás gestionarlos desde aquí.",
-                                    color = Color(0xFF9CA3AF),
-                                    fontSize = 12.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
+                                Spacer(modifier = Modifier.height(10.dp))
                             }
                         }
                     }

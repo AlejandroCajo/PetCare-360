@@ -423,4 +423,143 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             Result.failure(e)
         }
     }
+
+    // ==========================================
+    // CITAS Y ORDENES (appointments & orders)
+    // ==========================================
+
+    suspend fun getAppointments(): Result<List<com.example.petcare360.data.model.AppointmentEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val userId = sessionManager.getUserId() ?: return@withContext Result.failure(Exception("No user logged in"))
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/appointments?user_id=eq.$userId&order=appointment_date.desc")
+                .get()
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val type = object : TypeToken<List<com.example.petcare360.data.model.AppointmentEntity>>() {}.type
+                val items: List<com.example.petcare360.data.model.AppointmentEntity> = gson.fromJson(responseBody, type)
+                Result.success(items)
+            } else {
+                Result.failure(Exception("Error fetching appointments"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getOrders(): Result<List<com.example.petcare360.data.model.OrderEntity>> = withContext(Dispatchers.IO) {
+        try {
+            val userId = sessionManager.getUserId() ?: return@withContext Result.failure(Exception("No user logged in"))
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/orders?user_id=eq.$userId&order=created_at.desc")
+                .get()
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val type = object : TypeToken<List<com.example.petcare360.data.model.OrderEntity>>() {}.type
+                val items: List<com.example.petcare360.data.model.OrderEntity> = gson.fromJson(responseBody, type)
+                Result.success(items)
+            } else {
+                Result.failure(Exception("Error fetching orders"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createAppointment(appointment: com.example.petcare360.data.model.AppointmentEntity): Result<com.example.petcare360.data.model.AppointmentEntity> = withContext(Dispatchers.IO) {
+        try {
+            val appointmentWithUser = appointment.copy(userId = sessionManager.getUserId())
+            val body = gson.toJson(appointmentWithUser).toRequestBody(jsonMediaType)
+
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/appointments")
+                .post(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.AppointmentEntity>>() {}.type
+                val inserted: List<com.example.petcare360.data.model.AppointmentEntity> = gson.fromJson(responseBody, listType)
+                if (inserted.isNotEmpty()) {
+                    Result.success(inserted[0])
+                } else {
+                    Result.success(appointmentWithUser)
+                }
+            } else {
+                Result.failure(Exception("Error al crear cita: $responseBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createOrder(order: com.example.petcare360.data.model.OrderEntity): Result<com.example.petcare360.data.model.OrderEntity> = withContext(Dispatchers.IO) {
+        try {
+            val orderWithUser = order.copy(userId = sessionManager.getUserId())
+            val body = gson.toJson(orderWithUser).toRequestBody(jsonMediaType)
+
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/orders")
+                .post(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.OrderEntity>>() {}.type
+                val inserted: List<com.example.petcare360.data.model.OrderEntity> = gson.fromJson(responseBody, listType)
+                if (inserted.isNotEmpty()) {
+                    Result.success(inserted[0])
+                } else {
+                    Result.success(orderWithUser)
+                }
+            } else {
+                Result.failure(Exception("Error al crear orden: $responseBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createOrderItem(item: com.example.petcare360.data.model.OrderItemEntity): Result<com.example.petcare360.data.model.OrderItemEntity> = withContext(Dispatchers.IO) {
+        try {
+            val body = gson.toJson(item).toRequestBody(jsonMediaType)
+
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/order_items")
+                .post(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<com.example.petcare360.data.model.OrderItemEntity>>() {}.type
+                val inserted: List<com.example.petcare360.data.model.OrderItemEntity> = gson.fromJson(responseBody, listType)
+                if (inserted.isNotEmpty()) {
+                    Result.success(inserted[0])
+                } else {
+                    Result.success(item)
+                }
+            } else {
+                Result.failure(Exception("Error al añadir item a la orden: $responseBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

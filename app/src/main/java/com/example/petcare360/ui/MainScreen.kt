@@ -103,7 +103,10 @@ fun MainScreen(
                     },
                     onLogoutClick = onLogout
                 )
-                NavTab.SALUD -> SaludScreen()
+                NavTab.SALUD -> SaludScreen(
+                    supabaseClient = supabaseClient,
+                    userPets = petsList
+                )
                 NavTab.PERDIDOS -> PerdidosScreen()
                 NavTab.COMUNIDAD -> ComunidadScreen(
                     cloudinaryManager = cloudinaryManager,
@@ -112,7 +115,10 @@ fun MainScreen(
                     userAvatar = currentUserAvatar,
                     userPets = petsList
                 )
-                NavTab.SERVICIOS -> ServiciosScreen(supabaseClient = supabaseClient)
+                NavTab.SERVICIOS -> ServiciosScreen(
+                    supabaseClient = supabaseClient,
+                    userPets = petsList
+                )
                 NavTab.PERFIL -> {
                     if (cloudinaryManager != null) {
                         ProfileScreen(

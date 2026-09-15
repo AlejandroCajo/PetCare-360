@@ -93,6 +93,7 @@ fun dbCodeToDisplay(dbCat: String): String = when (dbCat.lowercase()) {
 @Composable
 fun ServiciosScreen(
     supabaseClient: SupabaseClient? = null,
+    userPets: List<com.example.petcare360.data.model.PetEntity> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -143,6 +144,7 @@ fun ServiciosScreen(
         BusinessDetailScreen(
             business = selectedBusiness!!,
             supabaseClient = supabaseClient,
+            userPets = userPets,
             onBack = { selectedBusiness = null }
         )
         return

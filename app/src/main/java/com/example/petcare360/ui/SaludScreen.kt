@@ -34,6 +34,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -138,12 +140,67 @@ val SAMPLE_VISITS = listOf(
  */
 @Composable
 fun SaludScreen(
+    supabaseClient: com.example.petcare360.data.remote.SupabaseClient? = null,
+    userPets: List<com.example.petcare360.data.model.PetEntity> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    var activePet by remember { mutableIntStateOf(0) }
+    var activePetIndex by remember { mutableIntStateOf(0) }
+    
+    var vaccines by remember { mutableStateOf<List<Vaccine>>(emptyList()) }
+    var medications by remember { mutableStateOf<List<Medication>>(emptyList()) }
+    var visits by remember { mutableStateOf<List<VetVisit>>(emptyList()) }
+
+    LaunchedEffect(activePetIndex, userPets) {
+        if (userPets.isNotEmpty() && supabaseClient != null) {
+            val petId = userPets[activePetIndex].id
+            if (petId != null) {
+                val result = supabaseClient.getMedicalRecords(petId)
+                result.onSuccess { records ->
+                    vaccines = records.filter { it.recordType == "vacuna" }.map {
+                        Vaccine(it.title, it.status ?: "pending", it.date)
+                    }
+                    medications = records.filter { it.recordType == "medicina" }.map {
+                        Medication(it.title, it.description ?: "", it.nextDate ?: "")
+                    }
+                    visits = records.filter { it.recordType == "visita" }.map {
+                        VetVisit(it.date, it.title, it.vetName ?: "")
+                    }
+                }.onFailure {
+                    // Fallback a vacío
+                    vaccines = emptyList()
+                    medications = emptyList()
+                    visits = emptyList()
+                }
+            }
+        }
+    }
+
+    val colors = listOf(Color(0xFFE8703A), Color(0xFF7C3AED), Color(0xFF3D9E6B))
+    val mappedPets = if (userPets.isNotEmpty()) {
+        userPets.mapIndexed { index, pet ->
+            HealthPet(
+                id = pet.id ?: "",
+                name = pet.name,
+                breed = pet.breed ?: "Desconocida",
+                gender = pet.species,
+                weight = "-",
+                age = pet.birthDate ?: "-",
+                nextVet = "-",
+                img = pet.photoUrl ?: "",
+                color = colors[index % colors.size]
+            )
+        }
+    } else {
+        SAMPLE_HEALTH_PETS
+    }
+
     SaludScreen(
-        activePet = activePet,
-        setActivePet = { activePet = it },
+        activePet = activePetIndex,
+        setActivePet = { activePetIndex = it },
+        pets = mappedPets,
+        vaccines = if (userPets.isNotEmpty()) vaccines else SAMPLE_VACCINES,
+        medications = if (userPets.isNotEmpty()) medications else SAMPLE_MEDICATIONS,
+        visits = if (userPets.isNotEmpty()) visits else SAMPLE_VISITS,
         modifier = modifier
     )
 }
@@ -156,14 +213,14 @@ fun SaludScreen(
     activePet: Int,
     setActivePet: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    pets: List<HealthPet> = SAMPLE_HEALTH_PETS,
-    vaccines: List<Vaccine> = SAMPLE_VACCINES,
-    medications: List<Medication> = SAMPLE_MEDICATIONS,
-    visits: List<VetVisit> = SAMPLE_VISITS,
+    pets: List<HealthPet>,
+    vaccines: List<Vaccine>,
+    medications: List<Medication>,
+    visits: List<VetVisit>,
     onAddVaccineClick: () -> Unit = {},
     onAddMedicationClick: () -> Unit = {}
 ) {
-    val pet = pets.getOrElse(activePet) { pets.first() }
+    val pet = pets.getOrElse(activePet) { pets.firstOrNull() } ?: return
 
     Column(
         modifier = modifier

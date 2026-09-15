@@ -59,12 +59,24 @@ import com.example.petcare360.data.model.BusinessEntity
 import com.example.petcare360.data.model.BusinessProductEntity
 import com.example.petcare360.data.model.BusinessServiceEntity
 import com.example.petcare360.data.remote.SupabaseClient
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.example.petcare360.data.model.PetEntity
+import com.example.petcare360.data.model.AppointmentEntity
+import com.example.petcare360.data.model.OrderEntity
+import com.example.petcare360.data.model.OrderItemEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 @Composable
 fun BusinessDetailScreen(
     business: BusinessEntity,
     supabaseClient: SupabaseClient?,
+    userPets: List<PetEntity>,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -74,6 +86,9 @@ fun BusinessDetailScreen(
     var services by remember { mutableStateOf<List<BusinessServiceEntity>>(emptyList()) }
     var products by remember { mutableStateOf<List<BusinessProductEntity>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+
+    var selectedServiceForBooking by remember { mutableStateOf<BusinessServiceEntity?>(null) }
+    var selectedProductForBuying by remember { mutableStateOf<BusinessProductEntity?>(null) }
 
     LaunchedEffect(business.id) {
         if (supabaseClient != null && business.id != null) {
@@ -222,7 +237,7 @@ fun BusinessDetailScreen(
                     }
                     items(services) { service ->
                         ServiceItem(service) {
-                            Toast.makeText(context, "Reserva solicitada para ${service.name}", Toast.LENGTH_SHORT).show()
+                            selectedServiceForBooking = service
                         }
                     }
                 }
@@ -240,7 +255,7 @@ fun BusinessDetailScreen(
                     }
                     items(products) { product ->
                         ProductItem(product) {
-                            Toast.makeText(context, "Agregado al carrito: ${product.name}", Toast.LENGTH_SHORT).show()
+                            selectedProductForBuying = product
                         }
                     }
                 }
@@ -261,6 +276,27 @@ fun BusinessDetailScreen(
                 }
             }
         }
+    }
+
+    if (selectedServiceForBooking != null && business.id != null) {
+        BookingDialog(
+            service = selectedServiceForBooking!!,
+            businessId = business.id,
+            userPets = userPets,
+            supabaseClient = supabaseClient,
+            onDismiss = { selectedServiceForBooking = null },
+            onSuccess = { selectedServiceForBooking = null }
+        )
+    }
+
+    if (selectedProductForBuying != null && business.id != null) {
+        PurchaseDialog(
+            product = selectedProductForBuying!!,
+            businessId = business.id,
+            supabaseClient = supabaseClient,
+            onDismiss = { selectedProductForBuying = null },
+            onSuccess = { selectedProductForBuying = null }
+        )
     }
 }
 
@@ -355,4 +391,151 @@ fun ProductItem(product: BusinessProductEntity, onAddClick: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+fun BookingDialog(
+    service: BusinessServiceEntity,
+    businessId: String,
+    userPets: List<PetEntity>,
+    supabaseClient: SupabaseClient?,
+    onDismiss: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var selectedPet by remember { mutableStateOf<PetEntity?>(userPets.firstOrNull()) }
+    var dateText by remember { mutableStateOf("2026-10-15 10:00:00") }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reservar Cita") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Servicio: ${service.name}")
+                Text("Precio: S/ ${service.price}")
+
+                if (userPets.isNotEmpty()) {
+                    Text("Selecciona una mascota:", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                    LazyColumn(modifier = Modifier.height(100.dp)) {
+                        items(userPets) { pet ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedPet = pet }
+                                    .background(if (selectedPet == pet) Color(0xFFFFFBEB) else Color.Transparent)
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(pet.name, fontWeight = if (selectedPet == pet) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
+                    }
+                } else {
+                    Text("No tienes mascotas registradas.", color = Color.Red)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (supabaseClient != null) {
+                        isSubmitting = true
+                        coroutineScope.launch {
+                            val appointment = AppointmentEntity(
+                                businessId = businessId,
+                                serviceId = service.id,
+                                petId = selectedPet?.id,
+                                appointmentDate = dateText
+                            )
+                            val result = supabaseClient.createAppointment(appointment)
+                            isSubmitting = false
+                            if (result.isSuccess) {
+                                Toast.makeText(context, "Reserva confirmada", Toast.LENGTH_SHORT).show()
+                                onSuccess()
+                            } else {
+                                Toast.makeText(context, "Error al reservar", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
+                enabled = !isSubmitting && (userPets.isEmpty() || selectedPet != null),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8703A))
+            ) {
+                Text(if (isSubmitting) "Procesando..." else "Confirmar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun PurchaseDialog(
+    product: BusinessProductEntity,
+    businessId: String,
+    supabaseClient: SupabaseClient?,
+    onDismiss: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Comprar Producto") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Producto: ${product.name}")
+                Text("Precio total: S/ ${product.price}", fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (supabaseClient != null) {
+                        isSubmitting = true
+                        coroutineScope.launch {
+                            val order = OrderEntity(
+                                businessId = businessId,
+                                totalAmount = product.price
+                            )
+                            val result = supabaseClient.createOrder(order)
+                            if (result.isSuccess) {
+                                val createdOrder = result.getOrNull()
+                                if (createdOrder?.id != null && product.id != null) {
+                                    val item = OrderItemEntity(
+                                        orderId = createdOrder.id,
+                                        productId = product.id,
+                                        quantity = 1,
+                                        priceAtPurchase = product.price
+                                    )
+                                    supabaseClient.createOrderItem(item)
+                                }
+                                Toast.makeText(context, "Compra exitosa", Toast.LENGTH_SHORT).show()
+                                onSuccess()
+                            } else {
+                                Toast.makeText(context, "Error en la compra", Toast.LENGTH_SHORT).show()
+                            }
+                            isSubmitting = false
+                        }
+                    }
+                },
+                enabled = !isSubmitting,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+            ) {
+                Text(if (isSubmitting) "Procesando..." else "Comprar ahora")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
