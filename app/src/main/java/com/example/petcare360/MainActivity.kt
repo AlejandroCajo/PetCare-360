@@ -61,61 +61,19 @@ fun PetCareApp() {
             when (screen) {
                 AppScreen.LOGIN -> {
                     LoginScreen(
-                        isLoading = isLoading,
-                        errorMessage = errorMessage,
-                        onLoginClick = { email, pass ->
-                            errorMessage = null
-                            isLoading = true
-                            coroutineScope.launch {
-                                val result = supabaseClient.signIn(email, pass)
-                                isLoading = false
-                                result.onSuccess {
-                                    currentScreen = AppScreen.MAIN
-                                }.onFailure { error ->
-                                    errorMessage = error.localizedMessage ?: "Error al iniciar sesión"
-                                }
-                            }
-                        },
-                        onNavigateToRegister = {
-                            errorMessage = null
-                            currentScreen = AppScreen.REGISTER
-                        },
-                        onGoogleLoginClick = {
-                            // Flujo social rápido por ahora
-                            currentScreen = AppScreen.MAIN
-                        }
+                        supabaseClient = supabaseClient,
+                        onLoginSuccess = { currentScreen = AppScreen.MAIN },
+                        onNavigateToRegister = { currentScreen = AppScreen.REGISTER },
+                        onGoogleLoginClick = { currentScreen = AppScreen.MAIN }
                     )
                 }
 
                 AppScreen.REGISTER -> {
                     RegisterScreen(
-                        isLoading = isLoading,
-                        errorMessage = errorMessage,
-                        onRegisterClick = { fullName, email, phone, pass ->
-                            errorMessage = null
-                            isLoading = true
-                            coroutineScope.launch {
-                                val result = supabaseClient.signUp(
-                                    email = email,
-                                    pass = pass,
-                                    fullName = fullName,
-                                    phone = phone
-                                )
-                                isLoading = false
-                                result.onSuccess {
-                                    currentScreen = AppScreen.MAIN
-                                }.onFailure { error ->
-                                    errorMessage = error.localizedMessage ?: "Error al registrarse"
-                                }
-                            }
-                        },
-                        onNavigateToLogin = {
-                            errorMessage = null
-                            currentScreen = AppScreen.LOGIN
-                        },
-                        onGoogleRegisterClick = {
-                            currentScreen = AppScreen.MAIN
-                        }
+                        supabaseClient = supabaseClient,
+                        onRegisterSuccess = { currentScreen = AppScreen.MAIN },
+                        onNavigateToLogin = { currentScreen = AppScreen.LOGIN },
+                        onGoogleRegisterClick = { currentScreen = AppScreen.MAIN }
                     )
                 }
 

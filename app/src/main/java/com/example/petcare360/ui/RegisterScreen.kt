@@ -86,6 +86,12 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var isConfirmPasswordVisible by remember { mutableStateOf(false) }
 
+    androidx.compose.runtime.LaunchedEffect(uiState.registerSuccess) {
+        if (uiState.registerSuccess) {
+            onRegisterSuccess()
+        }
+    }
+
     val focusManager = LocalFocusManager.current
 
     val primaryColor = Color(0xFFE8703A)
@@ -288,7 +294,7 @@ fun RegisterScreen(
                             modifier = Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) { acceptedTerms = !acceptedTerms }
+                            ) { viewModel.toggleTermsAccepted() }
                         ) {
                             Text(
                                 text = "Acepto los ",
@@ -305,10 +311,10 @@ fun RegisterScreen(
                         }
                     }
 
-                    if (!errorMessage.isNullOrEmpty()) {
+                    if (!uiState.errorMessage.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = errorMessage,
+                            text = uiState.errorMessage!!,
                             color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -318,38 +324,19 @@ fun RegisterScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Register Button
-                    val isFormValid = fullName.isNotBlank() &&
-                            email.isNotBlank() &&
-                            password.isNotBlank() &&
-                            password == confirmPassword &&
-                            acceptedTerms
+                    val isFormValid = uiState.name.isNotBlank() &&
+                            uiState.email.isNotBlank() &&
+                            uiState.password.isNotBlank() &&
+                            uiState.password == confirmPassword &&
+                            uiState.termsAccepted
 
-                    Button(
-                        onClick = { onRegisterClick(fullName, email, phone, password) },
-                        enabled = !isLoading && isFormValid,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = primaryColor
-                        )
-                    ) {
-                        if (isLoading) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
-                        } else {
-                            Text(
-                                text = "Registrarme",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        }
-                    }
+                    PetCarePrimaryButton(
+                        text = "Registrarme",
+                        onClick = { viewModel.register() },
+                        isLoading = uiState.isLoading,
+                        enabled = isFormValid,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 
