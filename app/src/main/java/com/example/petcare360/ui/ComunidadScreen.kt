@@ -64,6 +64,9 @@ import com.example.petcare360.data.model.PostEntity
 import com.example.petcare360.data.remote.CloudinaryManager
 import com.example.petcare360.data.remote.SupabaseClient
 import com.example.petcare360.ui.components.CreatePostDialog
+import com.example.petcare360.ui.components.PetCareTopBar
+import com.example.petcare360.ui.viewmodels.ComunidadViewModel
+import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 
 private const val PAGE_SIZE = 10 // Paginación de 10 en 10 posts
@@ -77,59 +80,11 @@ fun ComunidadScreen(
     userPets: List<PetEntity> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    var postsList by remember { mutableStateOf<List<PostEntity>>(emptyList()) }
-    var likedPostIds by remember { mutableStateOf(setOf<String>()) }
-    var isLoadingInitial by remember { mutableStateOf(true) }
-    var isLoadingMore by remember { mutableStateOf(false) }
-    var hasMorePosts by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var currentOffset by remember { mutableIntStateOf(0) }
+    val viewModel = remember(supabaseClient) { ComunidadViewModel(supabaseClient) }
+    val uiState by viewModel.uiState.collectAsState()
     var showCreatePostDialog by remember { mutableStateOf(false) }
 
-    val coroutineScope = rememberCoroutineScope()
     val primaryColor = Color(0xFFE8703A)
-
-    // Función para cargar publicaciones desde Supabase con paginación
-    fun loadPosts(reset: Boolean = false) {
-        if (supabaseClient == null) {
-            isLoadingInitial = false
-            return
-        }
-
-        coroutineScope.launch {
-            val offset = if (reset) 0 else currentOffset
-            if (reset) {
-                isLoadingInitial = true
-                errorMessage = null
-            } else {
-                isLoadingMore = true
-            }
-
-            val result = supabaseClient.getPosts(limit = PAGE_SIZE, offset = offset)
-            isLoadingInitial = false
-            isLoadingMore = false
-
-            result.onSuccess { newPosts ->
-                if (reset) {
-                    postsList = newPosts
-                    currentOffset = newPosts.size
-                } else {
-                    postsList = postsList + newPosts
-                    currentOffset += newPosts.size
-                }
-                hasMorePosts = newPosts.size == PAGE_SIZE
-            }.onFailure { error ->
-                if (reset) {
-                    errorMessage = error.localizedMessage ?: "Error al cargar la comunidad"
-                }
-            }
-        }
-    }
-
-    // Carga inicial al entrar en la pantalla
-    LaunchedEffect(Unit) {
-        loadPosts(reset = true)
-    }
 
     // Modal para crear post y subir a Cloudinary + Supabase
     if (showCreatePostDialog && cloudinaryManager != null) {
@@ -142,7 +97,7 @@ fun ComunidadScreen(
             onDismiss = { showCreatePostDialog = false },
             onPostCreated = { createdPost ->
                 showCreatePostDialog = false
-                postsList = listOf(createdPost) + postsList
+                viewModel.addPost(createdPost)
             }
         )
     }
@@ -153,13 +108,46 @@ fun ComunidadScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header
-            HeaderSection(
-                onCameraClick = { showCreatePostDialog = true },
-                onRefreshClick = { loadPosts(reset = true) }
+            PetCareTopBar(
+                subtitle = "COMUNIDAD",
+                title = "Mundo PetCare 🐾",
+                actions = {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF3F4F6))
+                            .clickable { viewModel.loadPosts(reset = true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = "Actualizar",
+                            tint = Color(0xFF4B5563),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE8703A))
+                            .clickable { showCreatePostDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoCamera,
+                            contentDescription = "Crear publicación",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             )
 
             // Contenido principal
-            if (isLoadingInitial) {
+            if (uiState.isLoadingInitial) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -180,7 +168,7 @@ fun ComunidadScreen(
                         )
                     }
                 }
-            } else if (errorMessage != null) {
+            } else if (uiState.errorMessage != null) {
                 // Mensaje de Error con Reintentar
                 Box(
                     modifier = Modifier
@@ -207,14 +195,14 @@ fun ComunidadScreen(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = errorMessage ?: "",
+                            text = uiState.errorMessage ?: "",
                             fontSize = 12.sp,
                             color = Color(0xFF9CA3AF),
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                         )
                         Button(
-                            onClick = { loadPosts(reset = true) },
+                            onClick = { viewModel.loadPosts(reset = true) },
                             colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -222,7 +210,7 @@ fun ComunidadScreen(
                         }
                     }
                 }
-            } else if (postsList.isEmpty()) {
+            } else if (uiState.posts.isEmpty()) {
                 // Estado Vacío (Sin publicaciones aún en la BD)
                 Box(
                     modifier = Modifier
@@ -279,19 +267,19 @@ fun ComunidadScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    itemsIndexed(postsList) { index, post ->
+                    itemsIndexed(uiState.posts) { index, post ->
                         val postId = post.id ?: "post_$index"
-                        val isLiked = likedPostIds.contains(postId)
+                        val isLiked = uiState.likedPostIds.contains(postId)
 
                         RealPostCard(
                             post = post,
                             isLiked = isLiked,
                             onToggleLike = {
-                                likedPostIds = if (isLiked) likedPostIds - postId else likedPostIds + postId
+                                viewModel.toggleLike(postId)
                             }
                         )
 
-                        if (index < postsList.size - 1) {
+                        if (index < uiState.posts.size - 1) {
                             HorizontalDivider(
                                 color = Color(0xFFF3F4F6),
                                 thickness = 6.dp
@@ -300,7 +288,7 @@ fun ComunidadScreen(
                     }
 
                     // Botón / Indicador para cargar más publicaciones (Paginación de 10 en 10)
-                    if (hasMorePosts) {
+                    if (uiState.hasMorePosts) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -308,7 +296,7 @@ fun ComunidadScreen(
                                     .padding(vertical = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isLoadingMore) {
+                                if (uiState.isLoadingMore) {
                                     CircularProgressIndicator(
                                         color = primaryColor,
                                         strokeWidth = 2.5.dp,
@@ -316,7 +304,7 @@ fun ComunidadScreen(
                                     )
                                 } else {
                                     OutlinedButton(
-                                        onClick = { loadPosts(reset = false) },
+                                        onClick = { viewModel.loadPosts(reset = false) },
                                         shape = RoundedCornerShape(12.dp),
                                         border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = primaryColor)
@@ -328,75 +316,6 @@ fun ComunidadScreen(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeaderSection(
-    onCameraClick: () -> Unit,
-    onRefreshClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "COMUNIDAD",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 1.2.sp,
-                color = Color(0xFF9CA3AF)
-            )
-            Text(
-                text = "Mundo PetCare 🐾",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
-                color = Color(0xFF1F2937)
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF3F4F6))
-                    .clickable { onRefreshClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "Actualizar",
-                    tint = Color(0xFF4B5563),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE8703A))
-                    .clickable { onCameraClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.PhotoCamera,
-                    contentDescription = "Crear publicación",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
     }

@@ -64,23 +64,31 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.petcare360.ui.theme.PetCare360Theme
+import com.example.petcare360.data.remote.SupabaseClient
+import com.example.petcare360.ui.components.PetCareTextField
+import com.example.petcare360.ui.components.PetCarePrimaryButton
+import com.example.petcare360.ui.viewmodels.LoginViewModel
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun LoginScreen(
-    isLoading: Boolean = false,
-    errorMessage: String? = null,
-    onLoginClick: (email: String, pass: String) -> Unit = { _, _ -> },
+    supabaseClient: SupabaseClient? = null,
+    onLoginSuccess: () -> Unit = {},
     onNavigateToRegister: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
     onGoogleLoginClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
-    var rememberMe by remember { mutableStateOf(true) }
+    val viewModel = remember(supabaseClient) { LoginViewModel(supabaseClient) }
+    val uiState by viewModel.uiState.collectAsState()
 
     val focusManager = LocalFocusManager.current
+
+    androidx.compose.runtime.LaunchedEffect(uiState.loginSuccess) {
+        if (uiState.loginSuccess) {
+            onLoginSuccess()
+        }
+    }
 
     val primaryColor = Color(0xFFE8703A)
     val primaryGradient = Brush.horizontalGradient(
@@ -159,81 +167,41 @@ fun LoginScreen(
                         .padding(20.dp)
                 ) {
                     // Email Field
-                    Text(
-                        text = "Correo electrónico",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("ejemplo@correo.com", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Email,
-                                contentDescription = "Email",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        singleLine = true,
+                    PetCareTextField(
+                        label = "Correo electrónico",
+                        value = uiState.email,
+                        onValueChange = { viewModel.updateEmail(it) },
+                        placeholder = "ejemplo@correo.com",
+                        leadingIcon = Icons.Outlined.Email,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Password Field
-                    Text(
-                        text = "Contraseña",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("••••••••", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = "Contraseña",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
+                    PetCareTextField(
+                        label = "Contraseña",
+                        value = uiState.password,
+                        onValueChange = { viewModel.updatePassword(it) },
+                        placeholder = "••••••••",
+                        leadingIcon = Icons.Outlined.Lock,
                         trailingIcon = {
-                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            IconButton(onClick = { viewModel.togglePasswordVisibility() }) {
                                 Icon(
-                                    imageVector = if (isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                                    contentDescription = if (isPasswordVisible) "Ocultar" else "Mostrar",
+                                    imageVector = if (uiState.isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                    contentDescription = if (uiState.isPasswordVisible) "Ocultar" else "Mostrar",
                                     tint = Color(0xFF9CA3AF),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                         },
-                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
+                        visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
@@ -241,16 +209,8 @@ fun LoginScreen(
                         keyboardActions = KeyboardActions(
                             onDone = {
                                 focusManager.clearFocus()
-                                onLoginClick(email, password)
+                                viewModel.login()
                             }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
@@ -267,11 +227,11 @@ fun LoginScreen(
                             modifier = Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) { rememberMe = !rememberMe }
+                            ) { viewModel.toggleRememberMe() }
                         ) {
                             Checkbox(
-                                checked = rememberMe,
-                                onCheckedChange = { rememberMe = it },
+                                checked = uiState.rememberMe,
+                                onCheckedChange = { viewModel.toggleRememberMe() },
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = primaryColor,
                                     uncheckedColor = Color(0xFFD1D5DB)
@@ -299,10 +259,10 @@ fun LoginScreen(
                         }
                     }
 
-                    if (!errorMessage.isNullOrEmpty()) {
+                    if (!uiState.errorMessage.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = errorMessage,
+                            text = uiState.errorMessage!!,
                             color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -312,32 +272,12 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Login Button
-                    Button(
-                        onClick = { onLoginClick(email, password) },
-                        enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = primaryColor
-                        )
-                    ) {
-                        if (isLoading) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
-                        } else {
-                            Text(
-                                text = "Iniciar Sesión",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        }
-                    }
+                    PetCarePrimaryButton(
+                        text = "Iniciar Sesión",
+                        onClick = { viewModel.login() },
+                        isLoading = uiState.isLoading,
+                        enabled = uiState.email.isNotBlank() && uiState.password.isNotBlank()
+                    )
                 }
             }
 

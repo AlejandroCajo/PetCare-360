@@ -65,25 +65,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.petcare360.ui.theme.PetCare360Theme
+import com.example.petcare360.data.remote.SupabaseClient
+import com.example.petcare360.ui.components.PetCareTextField
+import com.example.petcare360.ui.components.PetCarePrimaryButton
+import com.example.petcare360.ui.viewmodels.RegisterViewModel
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun RegisterScreen(
-    isLoading: Boolean = false,
-    errorMessage: String? = null,
-    onRegisterClick: (name: String, email: String, phone: String, pass: String) -> Unit = { _, _, _, _ -> },
+    supabaseClient: SupabaseClient? = null,
+    onRegisterSuccess: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
     onGoogleRegisterClick: () -> Unit = {},
     onTermsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val viewModel = remember(supabaseClient) { RegisterViewModel(supabaseClient) }
+    val uiState by viewModel.uiState.collectAsState()
+
     var confirmPassword by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
     var isConfirmPasswordVisible by remember { mutableStateOf(false) }
-    var acceptedTerms by remember { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
 
@@ -154,206 +155,95 @@ fun RegisterScreen(
                         .padding(20.dp)
                 ) {
                     // Full Name
-                    Text(
-                        text = "Nombre completo",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Ej. Laura Martínez", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Person,
-                                contentDescription = "Nombre",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        singleLine = true,
+                    PetCareTextField(
+                        label = "Nombre completo",
+                        value = uiState.name,
+                        onValueChange = { viewModel.updateName(it) },
+                        placeholder = "Ej. Laura Martínez",
+                        leadingIcon = Icons.Outlined.Person,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Email Field
-                    Text(
-                        text = "Correo electrónico",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("ejemplo@correo.com", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Email,
-                                contentDescription = "Email",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        singleLine = true,
+                    PetCareTextField(
+                        label = "Correo electrónico",
+                        value = uiState.email,
+                        onValueChange = { viewModel.updateEmail(it) },
+                        placeholder = "ejemplo@correo.com",
+                        leadingIcon = Icons.Outlined.Email,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Phone Field
-                    Text(
-                        text = "Teléfono móvil",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("+52 55 1234 5678", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Phone,
-                                contentDescription = "Teléfono",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        singleLine = true,
+                    PetCareTextField(
+                        label = "Teléfono móvil",
+                        value = uiState.phone,
+                        onValueChange = { viewModel.updatePhone(it) },
+                        placeholder = "+52 55 1234 5678",
+                        leadingIcon = Icons.Outlined.Phone,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Password Field
-                    Text(
-                        text = "Contraseña",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Mínimo 8 caracteres", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = "Contraseña",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
+                    PetCareTextField(
+                        label = "Contraseña",
+                        value = uiState.password,
+                        onValueChange = { viewModel.updatePassword(it) },
+                        placeholder = "Mínimo 8 caracteres",
+                        leadingIcon = Icons.Outlined.Lock,
                         trailingIcon = {
-                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            IconButton(onClick = { viewModel.togglePasswordVisibility() }) {
                                 Icon(
-                                    imageVector = if (isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                                    contentDescription = if (isPasswordVisible) "Ocultar" else "Mostrar",
+                                    imageVector = if (uiState.isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                    contentDescription = if (uiState.isPasswordVisible) "Ocultar" else "Mostrar",
                                     tint = Color(0xFF9CA3AF),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                         },
-                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
+                        visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Confirm Password Field
-                    Text(
-                        text = "Confirmar contraseña",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
-                    OutlinedTextField(
+                    PetCareTextField(
+                        label = "Confirmar contraseña",
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Repite tu contraseña", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = "Confirmar Contraseña",
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
+                        placeholder = "Repite tu contraseña",
+                        leadingIcon = Icons.Outlined.Lock,
                         trailingIcon = {
                             IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
                                 Icon(
@@ -365,7 +255,6 @@ fun RegisterScreen(
                             }
                         },
                         visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
@@ -373,16 +262,8 @@ fun RegisterScreen(
                         keyboardActions = KeyboardActions(
                             onDone = {
                                 focusManager.clearFocus()
-                                onRegisterClick(fullName, email, phone, password)
+                                viewModel.register()
                             }
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            cursorColor = primaryColor
                         )
                     )
 
@@ -394,8 +275,8 @@ fun RegisterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = acceptedTerms,
-                            onCheckedChange = { acceptedTerms = it },
+                            checked = uiState.termsAccepted,
+                            onCheckedChange = { viewModel.toggleTermsAccepted() },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = primaryColor,
                                 uncheckedColor = Color(0xFFD1D5DB)
