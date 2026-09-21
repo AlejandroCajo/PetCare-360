@@ -53,6 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.petcare360.ui.theme.PetCare360Theme
+import com.example.petcare360.ui.components.PetCareTopBar
+import com.example.petcare360.ui.components.PetCareSearchBar
+import com.example.petcare360.ui.components.LostPetCard
 
 enum class LostPetType {
     PERDIDO, ENCONTRADO
@@ -155,10 +158,32 @@ fun PerdidosScreen(
             .verticalScroll(rememberScrollState())
     ) {
         // 1. Encabezado y Barra de Búsqueda
-        HeaderSection(
-            searchQuery = searchQuery,
-            onSearchQueryChange = onSearchQueryChange,
-            onAddPetClick = onAddPetClick
+        PetCareTopBar(
+            subtitle = "EMERGENCIAS",
+            title = "Mascotas Perdidas",
+            actions = {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFE8703A))
+                        .clickable { onAddPetClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Agregar reporte",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color.White
+                    )
+                }
+            }
+        )
+        PetCareSearchBar(
+            query = searchQuery,
+            onQueryChange = onSearchQueryChange,
+            placeholder = "Buscar por nombre, raza, zona...",
+            modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp)
         )
 
         // 2. Tarjeta del Mini Mapa
@@ -183,91 +208,6 @@ fun PerdidosScreen(
     }
 }
 
-@Composable
-private fun HeaderSection(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onAddPetClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 12.dp, bottom = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Mascotas Perdidas",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.Serif,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE8703A))
-                    .clickable { onAddPetClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Agregar reporte",
-                    modifier = Modifier.size(18.dp),
-                    tint = Color.White
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Barra de Búsqueda
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Search,
-                    contentDescription = "Buscar",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Box(modifier = Modifier.weight(1f)) {
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = "Buscar por nombre, raza, zona...",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 14.sp
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun MiniMapCard(
@@ -426,171 +366,11 @@ private fun PetCardsList(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         pets.forEach { pet ->
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        AsyncImage(
-                            model = pet.img,
-                            contentDescription = pet.name,
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentScale = ContentScale.Crop
-                        )
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = pet.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = pet.breed,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                val isPerdido = pet.type == LostPetType.PERDIDO
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(
-                                            if (isPerdido) Color(0xFFFEE2E2) else Color(0xFFDCFCE7)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = if (isPerdido) "Perdido" else "Encontrado",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isPerdido) Color(0xFFB91C1C) else Color(0xFF15803D)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.LocationOn,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = pet.location,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.padding(top = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Schedule,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = pet.daysAgo,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            if (pet.reward != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 8.dp)
-                                        .clip(RoundedCornerShape(50))
-                                        .background(Color(0xFFF59E0B).copy(alpha = 0.10f))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "Recompensa: ${pet.reward}",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF92400E),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Acciones Rápidas (Contactar / Compartir)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { onContactClick(pet) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFE8703A),
-                                contentColor = Color.White
-                            ),
-                            contentPadding = PaddingValues(vertical = 10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                        ) {
-                            Text(
-                                text = "Contactar",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = { onShareClick(pet) },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                            contentPadding = PaddingValues(vertical = 10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                        ) {
-                            Text(
-                                text = "Compartir",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
+            LostPetCard(
+                pet = pet,
+                onContactClick = onContactClick,
+                onShareClick = onShareClick
+            )
         }
     }
 }

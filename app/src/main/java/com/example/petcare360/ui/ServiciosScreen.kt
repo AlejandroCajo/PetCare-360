@@ -68,6 +68,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.petcare360.data.model.BusinessEntity
 import com.example.petcare360.data.remote.SupabaseClient
+import com.example.petcare360.ui.components.BusinessCard
+import com.example.petcare360.ui.components.PetCareSearchBar
+import com.example.petcare360.ui.components.PetCareTopBar
 import kotlinx.coroutines.launch
 
 val SERVICE_CATEGORIES = listOf("Todos", "Veterinaria", "Peluquería", "Paseador", "Guardería", "Pet Shop")
@@ -156,10 +159,30 @@ fun ServiciosScreen(
             .verticalScroll(rememberScrollState())
     ) {
         // 1. Header (Título + Barra de Búsqueda)
-        HeaderSection(
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            onRefreshClick = { loadBusinesses() }
+        PetCareTopBar(
+            subtitle = "SERVICIOS & BIENESTAR",
+            title = "Explorar Servicios",
+            actions = {
+                IconButton(
+                    onClick = { loadBusinesses() },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color(0xFFF3F4F6), androidx.compose.foundation.shape.CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "Actualizar",
+                        tint = Color(0xFF4B5563),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        )
+        PetCareSearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            placeholder = "Buscar veterinarias, paseadores, spa...",
+            modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp)
         )
 
         // 2. Chips de Categoría
@@ -264,105 +287,12 @@ fun ServiciosScreen(
                 }
             } else {
                 filteredList.forEach { business ->
-                    RealBusinessCard(
+                    BusinessCard(
                         business = business,
                         onContactClick = {
                             selectedBusiness = business
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeaderSection(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onRefreshClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 20.dp)
-            .padding(top = 16.dp, bottom = 12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "SERVICIOS & BIENESTAR",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 1.2.sp,
-                    color = Color(0xFF9CA3AF)
-                )
-                Text(
-                    text = "Explorar Servicios",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    color = Color(0xFF1F2937)
-                )
-            }
-
-            IconButton(
-                onClick = onRefreshClick,
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(Color(0xFFF3F4F6), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "Actualizar",
-                    tint = Color(0xFF4B5563),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Barra de Búsqueda
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFFF3F4F6),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Search,
-                    contentDescription = "Buscar",
-                    modifier = Modifier.size(18.dp),
-                    tint = Color(0xFF9CA3AF)
-                )
-
-                Box(modifier = Modifier.weight(1f)) {
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = "Buscar veterinarias, paseadores, spa...",
-                            fontSize = 13.sp,
-                            color = Color(0xFF9CA3AF)
-                        )
-                    }
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = Color(0xFF1F2937),
-                            fontSize = 13.sp
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                        },
+                        categoryDisplay = dbCodeToDisplay(business.category)
                     )
                 }
             }
@@ -403,166 +333,4 @@ private fun CategoryPillsSection(
 }
 
 
-@Composable
-private fun RealBusinessCard(
-    business: BusinessEntity,
-    onContactClick: () -> Unit
-) {
-    val primaryColor = Color(0xFFE8703A)
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-        shadowElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                // Imagen del negocio
-                Box(
-                    modifier = Modifier
-                        .size(74.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFFFF3ED)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!business.photoUrl.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = business.photoUrl,
-                            contentDescription = business.name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        val icon = when (business.category.lowercase()) {
-                            "vet" -> Icons.Outlined.MedicalServices
-                            "groomer" -> Icons.Outlined.ContentCut
-                            "walker" -> Icons.Outlined.Pets
-                            "daycare" -> Icons.Outlined.Home
-                            else -> Icons.Outlined.ShoppingBag
-                        }
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = primaryColor,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                }
-
-                // Información
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text(
-                            text = business.name,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Rating
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                                tint = Color(0xFFF59E0B)
-                            )
-                            Text(
-                                text = String.format("%.1f", business.avgRating),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F2937)
-                            )
-                        }
-                    }
-
-                    // Categoría
-                    Text(
-                        text = dbCodeToDisplay(business.category),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = primaryColor,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-
-                    // Dirección / Teléfono
-                    if (!business.address.isNullOrBlank()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.LocationOn,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                                tint = Color(0xFF9CA3AF)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = business.address!!,
-                                fontSize = 11.sp,
-                                color = Color(0xFF6B7280),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // Precio
-                    if (!business.priceInfo.isNullOrBlank()) {
-                        Text(
-                            text = "🏷️ ${business.priceInfo}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF047857),
-                            modifier = Modifier.padding(top = 3.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Botón Contactar / Reservar
-            Button(
-                onClick = onContactClick,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(38.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!business.phone.isNullOrBlank()) {
-                        Icon(
-                            imageVector = Icons.Default.Phone,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Llamar / Contactar (${business.phone})", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    } else {
-                        Text("Reservar Cita", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
