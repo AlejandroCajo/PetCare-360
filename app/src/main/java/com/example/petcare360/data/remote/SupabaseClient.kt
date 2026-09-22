@@ -138,6 +138,58 @@ class SupabaseClient(private val sessionManager: SessionManager) {
         sessionManager.clearSession()
     }
 
+    suspend fun updateUserAvatar(avatarUrl: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userId = sessionManager.getUserId() ?: throw Exception("No user ID found")
+            val payload = mapOf("avatar_url" to avatarUrl)
+            val body = gson.toJson(payload).toRequestBody(jsonMediaType)
+
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/users?id=eq.$userId")
+                .patch(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val err = response.body?.string()
+                Result.failure(Exception("Error al actualizar avatar: $err"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserProfile(): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            val userId = sessionManager.getUserId() ?: throw Exception("No user ID found")
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/users?id=eq.$userId")
+                .get()
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val typeToken = object : TypeToken<List<UserProfile>>() {}.type
+                val profiles: List<UserProfile> = gson.fromJson(responseBody, typeToken)
+                if (profiles.isNotEmpty()) {
+                    Result.success(profiles.first())
+                } else {
+                    Result.failure(Exception("Usuario no encontrado en public.users"))
+                }
+            } else {
+                Result.failure(Exception("Error al obtener perfil: $responseBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ==========================================
     // MASCOTAS (pets)
     // ==========================================

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,6 +57,17 @@ fun PetCareApp() {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    var userAvatar by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == AppScreen.MAIN) {
+            val res = supabaseClient.getUserProfile()
+            res.onSuccess { profile ->
+                userAvatar = profile.avatarUrl
+            }
+        }
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
             when (screen) {
@@ -82,6 +94,7 @@ fun PetCareApp() {
                         userName = sessionManager.getUserName() ?: "Alejandro",
                         userEmail = sessionManager.getUserEmail() ?: "acajomejia@gmail.com",
                         userPhone = "+51 991019411",
+                        userAvatar = userAvatar,
                         cloudinaryManager = cloudinaryManager,
                         supabaseClient = supabaseClient,
                         onLogout = {

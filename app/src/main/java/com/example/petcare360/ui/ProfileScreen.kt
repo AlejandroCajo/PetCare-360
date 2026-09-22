@@ -108,6 +108,7 @@ fun ProfileScreen(
                 val res = cloudinaryManager.uploadImage(uri)
                 isUploadingAvatar = false
                 res.onSuccess { url ->
+                    supabaseClient?.updateUserAvatar(url)
                     onAvatarUpdated(url)
                 }
             }
