@@ -616,6 +616,9 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
     suspend fun updatePost(postId: String, newContent: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val payload = mapOf("content" to newContent)
