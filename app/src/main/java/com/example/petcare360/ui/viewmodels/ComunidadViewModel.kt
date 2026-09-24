@@ -16,7 +16,8 @@ data class ComunidadUiState(
     val isLoadingInitial: Boolean = true,
     val isLoadingMore: Boolean = false,
     val hasMorePosts: Boolean = true,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val currentUserId: String? = null
 )
 
 class ComunidadViewModel(
@@ -30,6 +31,7 @@ class ComunidadViewModel(
     private val PAGE_SIZE = 10
 
     init {
+        _uiState.update { it.copy(currentUserId = supabaseClient?.getCurrentUserId()) }
         loadPosts(reset = true)
     }
 
@@ -102,6 +104,21 @@ class ComunidadViewModel(
     fun addPost(post: PostEntity) {
         _uiState.update {
             it.copy(posts = listOf(post) + it.posts)
+        }
+    }
+
+    fun deletePost(postId: String) {
+        if (supabaseClient == null) return
+        
+        viewModelScope.launch {
+            val result = supabaseClient.deletePost(postId)
+            result.onSuccess {
+                _uiState.update { state ->
+                    state.copy(posts = state.posts.filter { it.id != postId })
+                }
+            }.onFailure { e ->
+                _uiState.update { it.copy(errorMessage = "Error al eliminar post: ${e.message}") }
+            }
         }
     }
 }

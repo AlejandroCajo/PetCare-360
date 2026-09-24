@@ -275,8 +275,12 @@ fun ComunidadScreen(
                         PostCard(
                             post = post,
                             isLiked = isLiked,
+                            currentUserId = uiState.currentUserId,
                             onToggleLike = {
                                 viewModel.toggleLike(postId)
+                            },
+                            onDeleteClick = {
+                                viewModel.deletePost(postId)
                             }
                         )
 

@@ -138,6 +138,10 @@ class SupabaseClient(private val sessionManager: SessionManager) {
         sessionManager.clearSession()
     }
 
+    fun getCurrentUserId(): String? {
+        return sessionManager.getUserId()
+    }
+
     suspend fun updateUserAvatar(avatarUrl: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val userId = sessionManager.getUserId() ?: throw Exception("No user ID found")
@@ -612,6 +616,53 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             }
         } catch (e: Exception) {
             Result.failure(e)
-        }
+    suspend fun updatePost(postId: String, newContent: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val payload = mapOf("content" to newContent)
+            val body = gson.toJson(payload).toRequestBody(jsonMediaType)
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/posts?id=eq.$postId")
+                .patch(body)
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Error al actualizar post: ${response.body?.string()}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun deletePost(postId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/posts?id=eq.$postId")
+                .delete()
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Error al eliminar post: ${response.body?.string()}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun deletePet(petId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/pets?id=eq.$petId")
+                .delete()
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Error al eliminar mascota: ${response.body?.string()}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun deleteMedicalRecord(recordId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/medical_records?id=eq.$recordId")
+                .delete()
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Error al eliminar historial: ${response.body?.string()}"))
+        } catch (e: Exception) { Result.failure(e) }
     }
 }

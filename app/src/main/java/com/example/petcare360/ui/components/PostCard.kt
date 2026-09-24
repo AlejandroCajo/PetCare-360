@@ -13,7 +13,14 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,8 +36,13 @@ import com.example.petcare360.data.model.PostEntity
 fun PostCard(
     post: PostEntity,
     isLiked: Boolean,
-    onToggleLike: () -> Unit
+    currentUserId: String? = null,
+    onToggleLike: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null,
+    onEditClick: (() -> Unit)? = null
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White
@@ -108,12 +120,40 @@ fun PostCard(
                     }
                 }
 
-                Icon(
-                    imageVector = Icons.Outlined.MoreHoriz,
-                    contentDescription = "Opciones",
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier.size(20.dp)
-                )
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.MoreHoriz,
+                            contentDescription = "Opciones",
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (post.userId == currentUserId && currentUserId != null) {
+                            if (onEditClick != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Editar publicación") },
+                                    onClick = { showMenu = false; onEditClick() }
+                                )
+                            }
+                            if (onDeleteClick != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Eliminar", color = Color.Red) },
+                                    onClick = { showMenu = false; onDeleteClick() }
+                                )
+                            }
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Reportar publicación") },
+                                onClick = { showMenu = false }
+                            )
+                        }
+                    }
+                }
             }
 
             // Texto de la Publicación
