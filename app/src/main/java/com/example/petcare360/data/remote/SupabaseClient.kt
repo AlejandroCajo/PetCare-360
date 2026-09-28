@@ -200,8 +200,9 @@ class SupabaseClient(private val sessionManager: SessionManager) {
 
     suspend fun getPets(): Result<List<PetEntity>> = withContext(Dispatchers.IO) {
         try {
+            val userId = sessionManager.getUserId() ?: return@withContext Result.failure(Exception("No user logged in"))
             val requestBuilder = Request.Builder()
-                .url("${SupabaseConfig.REST_URL}/pets?select=*&order=created_at.desc")
+                .url("${SupabaseConfig.REST_URL}/pets?owner_id=eq.$userId&select=*&order=created_at.desc")
                 .get()
 
             buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
