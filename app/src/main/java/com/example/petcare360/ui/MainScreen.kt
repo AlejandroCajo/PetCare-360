@@ -61,15 +61,16 @@ fun MainScreen(
     userAvatar: String? = null,
     cloudinaryManager: com.example.petcare360.data.remote.CloudinaryManager? = null,
     supabaseClient: com.example.petcare360.data.remote.SupabaseClient? = null,
+    onAvatarUpdated: (String) -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var currentTab by remember { mutableStateOf(NavTab.INICIO) }
-    var petsList by remember { mutableStateOf<List<com.example.petcare360.data.model.PetEntity>>(emptyList()) }
-    var currentUserAvatar by remember { mutableStateOf(userAvatar) }
+    var petsList by remember(userName) { mutableStateOf<List<com.example.petcare360.data.model.PetEntity>>(emptyList()) }
+    var currentUserAvatar by remember(userAvatar) { mutableStateOf(userAvatar) }
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Cargar mascotas del usuario desde Supabase al iniciar
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    androidx.compose.runtime.LaunchedEffect(userName) {
         if (supabaseClient != null) {
             val result = supabaseClient.getPets()
             result.onSuccess { pets ->
@@ -134,6 +135,7 @@ fun MainScreen(
                             },
                             onAvatarUpdated = { newUrl ->
                                 currentUserAvatar = newUrl
+                                onAvatarUpdated(newUrl)
                             },
                             onLogout = onLogout
                         )

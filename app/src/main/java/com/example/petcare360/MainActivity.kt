@@ -97,7 +97,9 @@ fun PetCareApp() {
                         userAvatar = userAvatar,
                         cloudinaryManager = cloudinaryManager,
                         supabaseClient = supabaseClient,
+                        onAvatarUpdated = { userAvatar = it },
                         onLogout = {
+                            userAvatar = null
                             supabaseClient.signOut()
                             currentScreen = AppScreen.LOGIN
                         }
