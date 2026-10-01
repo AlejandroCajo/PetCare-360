@@ -65,8 +65,20 @@ data class WeightLogEntity(
 data class SosAlertEntity(
     @SerializedName("id") val id: String? = null,
     @SerializedName("pet_id") val petId: String,
+    @SerializedName("user_id") val userId: String? = null,
+    @SerializedName("last_seen_location") val lastSeenLocation: String? = null,
+    @SerializedName("photo_url") val photoUrl: String? = null,
+    @SerializedName("lost_date") val lostDate: String? = null,
+    @SerializedName("description") val description: String? = null,
     @SerializedName("status") val status: String = "active", // 'active', 'resolved'
-    @SerializedName("created_at") val createdAt: String? = null
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("pets") val petDetails: SosPetDetails? = null
+)
+
+data class SosPetDetails(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("breed") val breed: String? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null
 )
 
 data class BusinessEntity(

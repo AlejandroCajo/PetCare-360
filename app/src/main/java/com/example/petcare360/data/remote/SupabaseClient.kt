@@ -259,7 +259,7 @@ class SupabaseClient(private val sessionManager: SessionManager) {
     suspend fun getSosAlerts(): Result<List<SosAlertEntity>> = withContext(Dispatchers.IO) {
         try {
             val requestBuilder = Request.Builder()
-                .url("${SupabaseConfig.REST_URL}/sos_alerts?select=*&order=created_at.desc")
+                .url("${SupabaseConfig.REST_URL}/sos_alerts?select=*,pets(name,breed,avatar_url)&order=created_at.desc")
                 .get()
 
             buildHeaders(requiresAuth = false).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
@@ -278,7 +278,39 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             Result.failure(e)
         }
     }
+    suspend fun createSosAlert(alert: SosAlertEntity): Result<SosAlertEntity> = withContext(Dispatchers.IO) {
+        try {
+            val alertWithUser = alert.copy(userId = sessionManager.getUserId())
+            val body = gson.toJson(alertWithUser).toRequestBody(jsonMediaType)
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/sos_alerts")
+                .post(body)
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val responseBody = response.body?.string() ?: ""
+            if (response.isSuccessful) {
+                val listType = object : TypeToken<List<SosAlertEntity>>() {}.type
+                val inserted: List<SosAlertEntity> = gson.fromJson(responseBody, listType)
+                if (inserted.isNotEmpty()) Result.success(inserted[0]) else Result.success(alertWithUser)
+            } else {
+                Result.failure(Exception("Error al crear alerta: $responseBody"))
+            }
+        } catch (e: Exception) { Result.failure(e) }
+    }
 
+    suspend fun updateSosAlertStatus(id: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val payload = mapOf("status" to status)
+            val body = gson.toJson(payload).toRequestBody(jsonMediaType)
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/sos_alerts?id=eq.$id")
+                .patch(body)
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Error al actualizar alerta: ${response.body?.string()}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
     // ==========================================
     // SERVICIOS Y NEGOCIOS (businesses)
     // ==========================================

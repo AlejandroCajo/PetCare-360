@@ -25,8 +25,10 @@ import com.example.petcare360.ui.LostPetType
 @Composable
 fun LostPetCard(
     pet: LostPet,
+    isOwner: Boolean = false,
     onContactClick: (LostPet) -> Unit,
-    onShareClick: (LostPet) -> Unit
+    onShareClick: (LostPet) -> Unit,
+    onMarkAsFoundClick: ((LostPet) -> Unit)? = null
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -155,23 +157,44 @@ fun LostPetCard(
                     .padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { onContactClick(pet) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE8703A),
-                        contentColor = Color.White
-                    ),
-                    contentPadding = PaddingValues(vertical = 10.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                ) {
-                    Text(
-                        text = "Contactar",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                if (isOwner && pet.type == LostPetType.PERDIDO) {
+                    Button(
+                        onClick = { onMarkAsFoundClick?.invoke(pet) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF22C55E),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(vertical = 10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                    ) {
+                        Text(
+                            text = "¡Encontrado!",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = { onContactClick(pet) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE8703A),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(vertical = 10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                    ) {
+                        Text(
+                            text = "Contactar",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 OutlinedButton(

@@ -108,7 +108,7 @@ fun MainScreen(
                     supabaseClient = supabaseClient,
                     userPets = petsList
                 )
-                NavTab.PERDIDOS -> PerdidosScreen()
+                NavTab.PERDIDOS -> PerdidosScreen(supabaseClient = supabaseClient)
                 NavTab.COMUNIDAD -> ComunidadScreen(
                     cloudinaryManager = cloudinaryManager,
                     supabaseClient = supabaseClient,

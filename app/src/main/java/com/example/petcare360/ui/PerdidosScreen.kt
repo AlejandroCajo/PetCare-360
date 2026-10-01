@@ -56,6 +56,11 @@ import com.example.petcare360.ui.theme.PetCare360Theme
 import com.example.petcare360.ui.components.PetCareTopBar
 import com.example.petcare360.ui.components.PetCareSearchBar
 import com.example.petcare360.ui.components.LostPetCard
+import androidx.compose.runtime.collectAsState
+import com.example.petcare360.data.remote.SupabaseClient
+import com.example.petcare360.ui.viewmodels.PerdidosViewModel
+import com.example.petcare360.data.model.SosAlertEntity
+import androidx.compose.material3.CircularProgressIndicator
 
 enum class LostPetType {
     PERDIDO, ENCONTRADO
@@ -103,42 +108,39 @@ val SAMPLE_LOST_PETS = listOf(
     )
 )
 
-/**
- * Sobrecarga Stateful de PerdidosScreen.
- */
 @Composable
 fun PerdidosScreen(
-    modifier: Modifier = Modifier
-) {
-    var selectedTab by remember { mutableStateOf(LostPetType.PERDIDO) }
-    var searchQuery by remember { mutableStateOf("") }
-
-    PerdidosScreen(
-        selectedTab = selectedTab,
-        onTabSelected = { selectedTab = it },
-        searchQuery = searchQuery,
-        onSearchQueryChange = { searchQuery = it },
-        modifier = modifier
-    )
-}
-
-/**
- * Sobrecarga Stateless de PerdidosScreen equivalente a la versión de React.
- */
-@Composable
-fun PerdidosScreen(
-    selectedTab: LostPetType,
-    onTabSelected: (LostPetType) -> Unit,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    pets: List<LostPet> = SAMPLE_LOST_PETS,
+    supabaseClient: SupabaseClient? = null,
     onAddPetClick: () -> Unit = {},
     onFullMapClick: () -> Unit = {},
     onContactClick: (LostPet) -> Unit = {},
     onShareClick: (LostPet) -> Unit = {}
 ) {
-    val filteredPets = remember(selectedTab, searchQuery, pets) {
+    val viewModel = remember(supabaseClient) { PerdidosViewModel(supabaseClient) }
+    val uiState by viewModel.uiState.collectAsState()
+
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTab by remember { mutableStateOf(LostPetType.PERDIDO) }
+
+    val onSearchQueryChange = { query: String -> searchQuery = query }
+    val onTabSelected = { tab: LostPetType -> selectedTab = tab }
+
+    // Transformar SosAlertEntity a LostPet
+    val pets = uiState.alerts.map { alert ->
+        LostPet(
+            id = alert.id ?: "",
+            name = alert.petDetails?.name ?: "Desconocido",
+            breed = alert.petDetails?.breed ?: "Mascota",
+            img = alert.photoUrl ?: alert.petDetails?.avatarUrl ?: "https://images.unsplash.com/photo-1524661135-423995f22d0b?w=300&h=200&fit=crop",
+            location = alert.lastSeenLocation ?: "Ubicación desconocida",
+            daysAgo = alert.lostDate ?: "Fecha desconocida",
+            type = if (alert.status == "resolved") LostPetType.ENCONTRADO else LostPetType.PERDIDO,
+            reward = alert.description
+        )
+    }
+
+    val filteredPets = remember(pets, searchQuery, selectedTab) {
         pets.filter { pet ->
             val matchesTab = pet.type == selectedTab
             val matchesSearch = searchQuery.isBlank() ||
@@ -199,12 +201,21 @@ fun PerdidosScreen(
             foundCount = foundCount
         )
 
-        // 4. Lista de Tarjetas de Mascotas
-        PetCardsList(
-            pets = filteredPets,
-            onContactClick = onContactClick,
-            onShareClick = onShareClick
-        )
+        if (uiState.isLoading) {
+            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFFE8703A))
+            }
+        } else {
+            // 4. Lista de Tarjetas de Mascotas
+            PetCardsList(
+                pets = filteredPets,
+                currentUserId = uiState.currentUserId,
+                originalAlerts = uiState.alerts,
+                onContactClick = onContactClick,
+                onShareClick = onShareClick,
+                onMarkAsFoundClick = { pet -> viewModel.markAsFound(pet.id) }
+            )
+        }
     }
 }
 
@@ -356,8 +367,11 @@ private fun TabsSection(
 @Composable
 private fun PetCardsList(
     pets: List<LostPet>,
+    currentUserId: String?,
+    originalAlerts: List<SosAlertEntity>,
     onContactClick: (LostPet) -> Unit,
-    onShareClick: (LostPet) -> Unit
+    onShareClick: (LostPet) -> Unit,
+    onMarkAsFoundClick: (LostPet) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -366,10 +380,14 @@ private fun PetCardsList(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         pets.forEach { pet ->
+            val alert = originalAlerts.find { it.id == pet.id }
+            val isOwner = alert?.userId != null && alert.userId == currentUserId
             LostPetCard(
                 pet = pet,
+                isOwner = isOwner,
                 onContactClick = onContactClick,
-                onShareClick = onShareClick
+                onShareClick = onShareClick,
+                onMarkAsFoundClick = onMarkAsFoundClick
             )
         }
     }
