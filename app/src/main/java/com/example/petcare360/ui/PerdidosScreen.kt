@@ -138,7 +138,7 @@ fun PerdidosScreen(
             id = alert.id ?: "",
             name = alert.petDetails?.name ?: "Desconocido",
             breed = alert.petDetails?.breed ?: "Mascota",
-            img = alert.photoUrl ?: alert.petDetails?.avatarUrl ?: "https://images.unsplash.com/photo-1524661135-423995f22d0b?w=300&h=200&fit=crop",
+            img = alert.photoUrl ?: alert.petDetails?.photoUrl ?: "https://images.unsplash.com/photo-1524661135-423995f22d0b?w=300&h=200&fit=crop",
             location = alert.lastSeenLocation ?: "Ubicación desconocida",
             daysAgo = alert.lostDate ?: "Fecha desconocida",
             type = if (alert.status == "resolved") LostPetType.ENCONTRADO else LostPetType.PERDIDO,

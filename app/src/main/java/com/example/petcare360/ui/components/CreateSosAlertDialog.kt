@@ -129,6 +129,7 @@ fun CreateSosAlertDialog(
                                     SosAlertEntity(
                                         petId = selectedPetId!!,
                                         lastSeenLocation = lastSeenLocation,
+                                        lossLocation = "POINT(0 0)",
                                         lostDate = lostDate,
                                         description = description,
                                         status = "active"

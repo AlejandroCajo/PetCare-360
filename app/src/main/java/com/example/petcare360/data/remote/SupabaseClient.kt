@@ -259,7 +259,7 @@ class SupabaseClient(private val sessionManager: SessionManager) {
     suspend fun getSosAlerts(): Result<List<SosAlertEntity>> = withContext(Dispatchers.IO) {
         try {
             val requestBuilder = Request.Builder()
-                .url("${SupabaseConfig.REST_URL}/sos_alerts?select=*,pets(name,breed,avatar_url)&order=created_at.desc")
+                .url("${SupabaseConfig.REST_URL}/sos_alerts?select=*,pets(name,breed,photo_url)&order=created_at.desc")
                 .get()
 
             buildHeaders(requiresAuth = false).forEach { (k, v) -> requestBuilder.addHeader(k, v) }

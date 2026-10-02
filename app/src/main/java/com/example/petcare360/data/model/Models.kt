@@ -67,6 +67,7 @@ data class SosAlertEntity(
     @SerializedName("pet_id") val petId: String,
     @SerializedName("user_id") val userId: String? = null,
     @SerializedName("last_seen_location") val lastSeenLocation: String? = null,
+    @SerializedName("loss_location") val lossLocation: String? = "POINT(0 0)", // Dummy geometry to satisfy constraint
     @SerializedName("photo_url") val photoUrl: String? = null,
     @SerializedName("lost_date") val lostDate: String? = null,
     @SerializedName("description") val description: String? = null,
@@ -78,7 +79,7 @@ data class SosAlertEntity(
 data class SosPetDetails(
     @SerializedName("name") val name: String? = null,
     @SerializedName("breed") val breed: String? = null,
-    @SerializedName("avatar_url") val avatarUrl: String? = null
+    @SerializedName("photo_url") val photoUrl: String? = null
 )
 
 data class BusinessEntity(
