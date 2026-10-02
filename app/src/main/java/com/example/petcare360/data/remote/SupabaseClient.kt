@@ -701,4 +701,32 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             else Result.failure(Exception("Error al eliminar historial: ${response.body?.string()}"))
         } catch (e: Exception) { Result.failure(e) }
     }
+
+    suspend fun createSosSighting(alertId: String, location: String, notes: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val sightingMap = mapOf(
+                "sos_alert_id" to alertId,
+                "location" to location,
+                "notes" to notes,
+                "user_id" to getCurrentUserId()
+            )
+            val json = gson.toJson(sightingMap)
+            val requestBody = json.toRequestBody("application/json".toMediaType())
+            
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/sos_sightings")
+                .post(requestBody)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to create SOS sighting: ${response.code}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

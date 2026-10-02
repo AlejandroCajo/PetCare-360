@@ -60,4 +60,25 @@ class PerdidosViewModel(
             }
         }
     }
+
+    fun createSosAlert(alert: SosAlertEntity, onSuccess: () -> Unit) {
+        if (supabaseClient == null) return
+        viewModelScope.launch {
+            val result = supabaseClient.createSosAlert(alert)
+            if (result.isSuccess) {
+                loadAlerts() // Reload to get the joined pet details
+                onSuccess()
+            }
+        }
+    }
+
+    fun createSighting(alertId: String, location: String, notes: String, onSuccess: () -> Unit) {
+        if (supabaseClient == null) return
+        viewModelScope.launch {
+            val result = supabaseClient.createSosSighting(alertId, location, notes)
+            if (result.isSuccess) {
+                onSuccess()
+            }
+        }
+    }
 }

@@ -28,7 +28,8 @@ fun LostPetCard(
     isOwner: Boolean = false,
     onContactClick: (LostPet) -> Unit,
     onShareClick: (LostPet) -> Unit,
-    onMarkAsFoundClick: ((LostPet) -> Unit)? = null
+    onMarkAsFoundClick: ((LostPet) -> Unit)? = null,
+    onSightingClick: ((LostPet) -> Unit)? = null
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -176,14 +177,30 @@ fun LostPetCard(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                } else {
+                } else if (pet.type == LostPetType.PERDIDO) {
                     Button(
-                        onClick = { onContactClick(pet) },
+                        onClick = { onSightingClick?.invoke(pet) },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFE8703A),
                             contentColor = Color.White
                         ),
+                        contentPadding = PaddingValues(vertical = 10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                    ) {
+                        Text(
+                            text = "Lo vi",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { onContactClick(pet) },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE8703A)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE8703A)),
                         contentPadding = PaddingValues(vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -197,21 +214,23 @@ fun LostPetCard(
                     }
                 }
 
-                OutlinedButton(
-                    onClick = { onShareClick(pet) },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    contentPadding = PaddingValues(vertical = 10.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                ) {
-                    Text(
-                        text = "Compartir",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                if (pet.type != LostPetType.PERDIDO || isOwner) {
+                    OutlinedButton(
+                        onClick = { onShareClick(pet) },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        contentPadding = PaddingValues(vertical = 10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                    ) {
+                        Text(
+                            text = "Compartir",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }

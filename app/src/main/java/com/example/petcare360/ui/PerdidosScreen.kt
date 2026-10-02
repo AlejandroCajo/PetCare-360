@@ -60,7 +60,12 @@ import androidx.compose.runtime.collectAsState
 import com.example.petcare360.data.remote.SupabaseClient
 import com.example.petcare360.ui.viewmodels.PerdidosViewModel
 import com.example.petcare360.data.model.SosAlertEntity
+import com.example.petcare360.data.model.PetEntity
+import com.example.petcare360.ui.components.CreateSosAlertDialog
+import com.example.petcare360.ui.components.CreateSightingDialog
 import androidx.compose.material3.CircularProgressIndicator
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 enum class LostPetType {
     PERDIDO, ENCONTRADO
@@ -112,6 +117,7 @@ val SAMPLE_LOST_PETS = listOf(
 fun PerdidosScreen(
     modifier: Modifier = Modifier,
     supabaseClient: SupabaseClient? = null,
+    userPets: List<PetEntity> = emptyList(),
     onAddPetClick: () -> Unit = {},
     onFullMapClick: () -> Unit = {},
     onContactClick: (LostPet) -> Unit = {},
@@ -154,6 +160,36 @@ fun PerdidosScreen(
     val lostCount = remember(pets) { pets.count { it.type == LostPetType.PERDIDO } }
     val foundCount = remember(pets) { pets.count { it.type == LostPetType.ENCONTRADO } }
 
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var sightingPet by remember { mutableStateOf<LostPet?>(null) }
+    val context = LocalContext.current
+
+    if (showCreateDialog) {
+        CreateSosAlertDialog(
+            userPets = userPets,
+            onDismiss = { showCreateDialog = false },
+            onSubmit = { alert ->
+                viewModel.createSosAlert(alert) {
+                    showCreateDialog = false
+                    Toast.makeText(context, "Alerta publicada exitosamente", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    if (sightingPet != null) {
+        CreateSightingDialog(
+            petName = sightingPet!!.name,
+            onDismiss = { sightingPet = null },
+            onSubmit = { location, notes ->
+                viewModel.createSighting(sightingPet!!.id, location, notes) {
+                    sightingPet = null
+                    Toast.makeText(context, "Avistamiento registrado. ¡Gracias!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -169,7 +205,7 @@ fun PerdidosScreen(
                         .size(36.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFE8703A))
-                        .clickable { onAddPetClick() },
+                        .clickable { showCreateDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -213,7 +249,8 @@ fun PerdidosScreen(
                 originalAlerts = uiState.alerts,
                 onContactClick = onContactClick,
                 onShareClick = onShareClick,
-                onMarkAsFoundClick = { pet -> viewModel.markAsFound(pet.id) }
+                onMarkAsFoundClick = { pet -> viewModel.markAsFound(pet.id) },
+                onSightingClick = { pet -> sightingPet = pet }
             )
         }
     }
@@ -371,7 +408,8 @@ private fun PetCardsList(
     originalAlerts: List<SosAlertEntity>,
     onContactClick: (LostPet) -> Unit,
     onShareClick: (LostPet) -> Unit,
-    onMarkAsFoundClick: (LostPet) -> Unit
+    onMarkAsFoundClick: (LostPet) -> Unit,
+    onSightingClick: (LostPet) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -387,7 +425,8 @@ private fun PetCardsList(
                 isOwner = isOwner,
                 onContactClick = onContactClick,
                 onShareClick = onShareClick,
-                onMarkAsFoundClick = onMarkAsFoundClick
+                onMarkAsFoundClick = onMarkAsFoundClick,
+                onSightingClick = onSightingClick
             )
         }
     }
