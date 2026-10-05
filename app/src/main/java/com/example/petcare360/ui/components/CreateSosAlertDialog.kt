@@ -17,6 +17,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.platform.LocalContext
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import java.util.Calendar
+import androidx.compose.foundation.clickable
 import com.example.petcare360.data.model.PetEntity
 import com.example.petcare360.data.model.SosAlertEntity
 
@@ -25,13 +30,15 @@ import com.example.petcare360.data.model.SosAlertEntity
 fun CreateSosAlertDialog(
     userPets: List<PetEntity>,
     onDismiss: () -> Unit,
-    onSubmit: (SosAlertEntity) -> Unit
+    onSubmit: (SosAlertEntity, (Boolean) -> Unit) -> Unit
 ) {
     var selectedPetId by remember { mutableStateOf<String?>(userPets.firstOrNull()?.id) }
     var lastSeenLocation by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var lostDate by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    
+    val context = LocalContext.current
 
     Dialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
@@ -108,9 +115,32 @@ fun CreateSosAlertDialog(
 
                     OutlinedTextField(
                         value = lostDate,
-                        onValueChange = { lostDate = it },
-                        label = { Text("Fecha de pérdida (Ej. Hoy a las 8am)") },
-                        modifier = Modifier.fillMaxWidth()
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Fecha y hora de pérdida") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val cal = Calendar.getInstance()
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        TimePickerDialog(
+                                            context,
+                                            { _, hourOfDay, minute ->
+                                                val formattedTime = String.format("%02d:%02d", hourOfDay, minute)
+                                                lostDate = "$dayOfMonth/${month + 1}/$year $formattedTime"
+                                            },
+                                            cal.get(Calendar.HOUR_OF_DAY),
+                                            cal.get(Calendar.MINUTE),
+                                            true
+                                        ).show()
+                                    },
+                                    cal.get(Calendar.YEAR),
+                                    cal.get(Calendar.MONTH),
+                                    cal.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            }
                     )
 
                     OutlinedTextField(
@@ -123,7 +153,7 @@ fun CreateSosAlertDialog(
 
                     Button(
                         onClick = {
-                            if (selectedPetId != null && lastSeenLocation.isNotBlank()) {
+                            if (selectedPetId != null && lastSeenLocation.isNotBlank() && lostDate.isNotBlank()) {
                                 isLoading = true
                                 onSubmit(
                                     SosAlertEntity(
@@ -134,11 +164,13 @@ fun CreateSosAlertDialog(
                                         description = description,
                                         status = "active"
                                     )
-                                )
+                                ) { success ->
+                                    isLoading = false
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading && selectedPetId != null && lastSeenLocation.isNotBlank(),
+                        enabled = !isLoading && selectedPetId != null && lastSeenLocation.isNotBlank() && lostDate.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8703A))
                     ) {
                         if (isLoading) {

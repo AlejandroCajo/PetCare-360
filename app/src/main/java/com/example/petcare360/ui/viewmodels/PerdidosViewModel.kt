@@ -61,13 +61,18 @@ class PerdidosViewModel(
         }
     }
 
-    fun createSosAlert(alert: SosAlertEntity, onSuccess: () -> Unit) {
-        if (supabaseClient == null) return
+    fun createSosAlert(alert: SosAlertEntity, onResult: (Boolean) -> Unit) {
+        if (supabaseClient == null) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             val result = supabaseClient.createSosAlert(alert)
             if (result.isSuccess) {
                 loadAlerts() // Reload to get the joined pet details
-                onSuccess()
+                onResult(true)
+            } else {
+                onResult(false)
             }
         }
     }

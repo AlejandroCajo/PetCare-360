@@ -168,10 +168,15 @@ fun PerdidosScreen(
         CreateSosAlertDialog(
             userPets = userPets,
             onDismiss = { showCreateDialog = false },
-            onSubmit = { alert ->
-                viewModel.createSosAlert(alert) {
-                    showCreateDialog = false
-                    Toast.makeText(context, "Alerta publicada exitosamente", Toast.LENGTH_SHORT).show()
+            onSubmit = { alert, onResult ->
+                viewModel.createSosAlert(alert) { success ->
+                    onResult(success)
+                    if (success) {
+                        showCreateDialog = false
+                        Toast.makeText(context, "Alerta publicada exitosamente", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Error al publicar la alerta", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         )
