@@ -113,35 +113,41 @@ fun CreateSosAlertDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    OutlinedTextField(
-                        value = lostDate,
-                        onValueChange = { },
-                        readOnly = true,
-                        label = { Text("Fecha y hora de pérdida") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                val cal = Calendar.getInstance()
-                                DatePickerDialog(
-                                    context,
-                                    { _, year, month, dayOfMonth ->
-                                        TimePickerDialog(
-                                            context,
-                                            { _, hourOfDay, minute ->
-                                                val formattedTime = String.format("%02d:%02d", hourOfDay, minute)
-                                                lostDate = "$dayOfMonth/${month + 1}/$year $formattedTime"
-                                            },
-                                            cal.get(Calendar.HOUR_OF_DAY),
-                                            cal.get(Calendar.MINUTE),
-                                            true
-                                        ).show()
-                                    },
-                                    cal.get(Calendar.YEAR),
-                                    cal.get(Calendar.MONTH),
-                                    cal.get(Calendar.DAY_OF_MONTH)
-                                ).show()
-                            }
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = lostDate,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Fecha y hora de pérdida") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        // Overlay para capturar el click
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable {
+                                    val cal = Calendar.getInstance()
+                                    DatePickerDialog(
+                                        context,
+                                        { _, year, month, dayOfMonth ->
+                                            TimePickerDialog(
+                                                context,
+                                                { _, hourOfDay, minute ->
+                                                    val formattedTime = String.format("%02d:%02d", hourOfDay, minute)
+                                                    lostDate = "$dayOfMonth/${month + 1}/$year $formattedTime"
+                                                },
+                                                cal.get(Calendar.HOUR_OF_DAY),
+                                                cal.get(Calendar.MINUTE),
+                                                true
+                                            ).show()
+                                        },
+                                        cal.get(Calendar.YEAR),
+                                        cal.get(Calendar.MONTH),
+                                        cal.get(Calendar.DAY_OF_MONTH)
+                                    ).show()
+                                }
+                        )
+                    }
 
                     OutlinedTextField(
                         value = description,
