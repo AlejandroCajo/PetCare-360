@@ -510,6 +510,7 @@ fun ProfileScreen(
                     var appointments by remember { mutableStateOf<List<com.example.petcare360.data.model.AppointmentEntity>>(emptyList()) }
                     var orders by remember { mutableStateOf<List<com.example.petcare360.data.model.OrderEntity>>(emptyList()) }
                     var isLoadingTab2 by remember { mutableStateOf(true) }
+                    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
                     androidx.compose.runtime.LaunchedEffect(Unit) {
                         if (supabaseClient != null) {
@@ -569,23 +570,43 @@ fun ProfileScreen(
                             }
                         } else {
                             // Mostrar Reservas
-                            appointments.forEach { appt ->
+                            val activeAppointments = appointments.filter { it.status != "cancelled" }
+                            activeAppointments.forEach { appt ->
                                 val associatedPet = pets.find { it.id == appt.petId }
                                 ConsultationCard(
                                     title = "Reserva de Servicio",
                                     petName = associatedPet?.name ?: "Mascota",
                                     date = appt.appointmentDate ?: "Fecha pendiente",
-                                    type = "servicio"
+                                    type = "servicio",
+                                    onCancel = {
+                                        coroutineScope.launch {
+                                            if (appt.id != null && supabaseClient != null) {
+                                                supabaseClient.updateAppointmentStatus(appt.id, "cancelled")
+                                                val resApp = supabaseClient.getAppointments()
+                                                resApp.onSuccess { appointments = it }
+                                            }
+                                        }
+                                    }
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                             }
                             // Mostrar Pedidos
-                            orders.forEach { order ->
+                            val activeOrders = orders.filter { it.status != "cancelled" }
+                            activeOrders.forEach { order ->
                                 ConsultationCard(
                                     title = "Compra en PetShop",
                                     petName = "Total: S/ ${order.totalAmount}",
                                     date = order.createdAt ?: "Fecha pendiente",
-                                    type = "pedido"
+                                    type = "pedido",
+                                    onCancel = {
+                                        coroutineScope.launch {
+                                            if (order.id != null && supabaseClient != null) {
+                                                supabaseClient.updateOrderStatus(order.id, "cancelled")
+                                                val resOrd = supabaseClient.getOrders()
+                                                resOrd.onSuccess { orders = it }
+                                            }
+                                        }
+                                    }
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                             }
@@ -684,7 +705,8 @@ private fun ConsultationCard(
     title: String,
     petName: String,
     date: String,
-    type: String
+    type: String,
+    onCancel: (() -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -723,8 +745,21 @@ private fun ConsultationCard(
                 }
             }
 
-            Text(text = "Mascota: $petName", fontSize = 12.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(top = 6.dp))
-            Text(text = "📅 $date", fontSize = 11.sp, color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(text = "Mascota: $petName", fontSize = 12.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(top = 6.dp))
+                    Text(text = "📅 $date", fontSize = 11.sp, color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 4.dp))
+                }
+                if (onCancel != null) {
+                    androidx.compose.material3.TextButton(onClick = onCancel) {
+                        Text("Cancelar", color = Color.Red, fontSize = 12.sp)
+                    }
+                }
+            }
         }
     }
 }

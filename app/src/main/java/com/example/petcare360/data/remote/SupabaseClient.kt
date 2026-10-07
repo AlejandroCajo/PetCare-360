@@ -592,7 +592,47 @@ class SupabaseClient(private val sessionManager: SessionManager) {
             Result.failure(e)
         }
     }
+    suspend fun updateAppointmentStatus(id: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val json = """{"status":"$status"}"""
+            val body = json.toRequestBody(jsonMediaType)
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/appointments?id=eq.$id")
+                .patch(body)
 
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al actualizar cita: ${response.code}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateOrderStatus(id: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val json = """{"status":"$status"}"""
+            val body = json.toRequestBody(jsonMediaType)
+            val requestBuilder = Request.Builder()
+                .url("${SupabaseConfig.REST_URL}/orders?id=eq.$id")
+                .patch(body)
+
+            buildHeaders(requiresAuth = true).forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al actualizar pedido: ${response.code}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     suspend fun createOrder(order: com.example.petcare360.data.model.OrderEntity): Result<com.example.petcare360.data.model.OrderEntity> = withContext(Dispatchers.IO) {
         try {
             val orderWithUser = order.copy(userId = sessionManager.getUserId())

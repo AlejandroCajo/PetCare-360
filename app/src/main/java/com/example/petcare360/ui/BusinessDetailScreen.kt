@@ -89,6 +89,7 @@ fun BusinessDetailScreen(
 
     var selectedServiceForBooking by remember { mutableStateOf<BusinessServiceEntity?>(null) }
     var selectedProductForBuying by remember { mutableStateOf<BusinessProductEntity?>(null) }
+    var activeAlertPets by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(business.id) {
         if (supabaseClient != null && business.id != null) {
@@ -98,6 +99,10 @@ fun BusinessDetailScreen(
 
             servicesResult.onSuccess { services = it }
             productsResult.onSuccess { products = it }
+            val alertsRes = supabaseClient.getSosAlerts()
+            alertsRes.onSuccess { alerts -> 
+                activeAlertPets = alerts.filter { it.status == "active" }.map { it.petId }.toSet()
+            }
             isLoading = false
         } else {
             isLoading = false
@@ -282,7 +287,7 @@ fun BusinessDetailScreen(
         BookingDialog(
             service = selectedServiceForBooking!!,
             businessId = business.id,
-            userPets = userPets,
+            userPets = userPets.filter { it.id !in activeAlertPets },
             supabaseClient = supabaseClient,
             onDismiss = { selectedServiceForBooking = null },
             onSuccess = { selectedServiceForBooking = null }
